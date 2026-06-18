@@ -37,7 +37,7 @@ The system follows a **layered, loosely-coupled architecture** within an air-gap
 | **Containerlab over EVE-NG/GNS3** | Containerlab is declarative (YAML), Git-friendly, lightweight, and deployable in CI — critical for reproducible simulation |
 | **FRRouting over commercial routers** | Open-source, BGP/OSPF feature-complete, Docker-native, no licensing issues |
 | **Floci over AWS** | Zero cloud dependency, air-gap compliant, free, local AWS API emulation — replaces S3, DynamoDB, Lambda, SQS, KMS |
-| **Mistral 7B over larger models** | Balanced inference quality vs. GPU requirements; 4-bit quantized fits in 6 GB VRAM; CPU inference viable via llama.cpp |
+| **Qwen3-8B over larger models** | Fits entirely on RTX 4060 8 GB VRAM (Q4_K_M, 6.0 GB); 21 tok/s full GPU; Qwen3-4B-Thinking backup at 33 tok/s — no CPU offload needed |
 | **ChromaDB over Pinecone/Weaviate** | Fully local, zero telemetry, MIT license, simple Python API |
 | **LSTM + Prophet + GNN ensemble** | Captures temporal (LSTM), seasonal (Prophet), and topological (GNN) failure patterns — no single model covers all |
 | **Kafka for stream buffer** | Decouples collection from processing; enables replay for model training |
@@ -281,7 +281,7 @@ groups:
 │                                                                 │
 │  ┌───────────┐    ┌──────────────┐    ┌─────────────────────┐  │
 │  │ Context   │───▶│ RAG Pipeline │───▶│ LLM Inference       │  │
-│  │ Builder   │    │ · ChromaDB   │    │ (Mistral 7B ·       │  │
+│  │ Builder   │    │ · ChromaDB   │    │ (Qwen3-8B ·       │  │
 │  │           │    │ · Similarity │    │  llama.cpp)         │  │
 │  └───────────┘    │ · Retrieved  │    └──────────┬──────────┘  │
 │                   │   runbooks   │               │             │
@@ -348,28 +348,33 @@ Collection: network_incidents
 ### 5.4 Quantization Configuration
 
 ```yaml
-model: mistralai/Mistral-7B-Instruct-v0.3
-quantization: GPTQ (4-bit)
-inference_engine: llama.cpp (CPU) or exllamav2 (GPU)
+# ─── Primary Model ───
+model: Qwen/Qwen3-8B
+quantization: GGUF Q4_K_M
+inference_engine: Ollama / llama.cpp (CUDA)
 
-# CPU Mode (llama.cpp GGUF)
+# Hardware: RTX 4060 Laptop 8 GB VRAM / Ryzen 9 8945HS / 15 GB RAM
+# Qwen3-8B Q4_K_M: fits entirely on GPU at 6.0 GB VRAM (~21 tok/s)
+# Qwen3-4B-Thinking Q5_K_M: backup at 3.9 GB VRAM (~33 tok/s)
+
+# CPU Mode (llama.cpp GGUF — for CPU-only fallback)
 parameters:
   context_length: 4096
   batch_size: 512
   threads: 8
   gpu_layers: 0  # CPU only
 
-# GPU Mode (llama.cpp with CUDA)
+# GPU Mode (Ollama with CUDA — default config)
 parameters:
   context_length: 4096
   batch_size: 2048
-  gpu_layers: 35  # All layers on GPU
-  tensor_split: [0, 0]  # Single GPU
+  gpu_layers: 35  # All layers on GPU (8B model fits fully)
+  tensor_split: [0, 0]  # Single GPU (RTX 4060)
 
-# Performance targets:
-# CPU (32 cores): ~8 tokens/sec
-# GPU (RTX 4090): ~45 tokens/sec
-# GPU (A100 80GB): ~80 tokens/sec
+# Performance targets (measured on dev machine):
+# RTX 4060 8GB:   ~21 tokens/sec (Qwen3-8B Q4_K_M)
+# RTX 4060 8GB:   ~33 tokens/sec (Qwen3-4B-Thinking Q5_K_M)
+# CPU only (8C):  ~3-5 tokens/sec (slow, inference only)
 ```
 
 ---

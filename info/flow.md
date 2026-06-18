@@ -38,7 +38,7 @@ flowchart TB
         end
 
         subgraph LLM["🤖 Offline LLM Copilot"]
-            MISTRAL["Quantized Mistral 7B"]
+            MISTRAL["Quantized Qwen3-8B"]
             CHROMA["ChromaDB Vector Store"]
             RUNBOOKS["Internal Runbooks"]
             LANGCHAIN["LangChain RAG Pipeline"]
@@ -170,7 +170,7 @@ sequenceDiagram
     participant API as Copilot API (FastAPI)
     participant RAG as RAG Pipeline
     participant VDB as ChromaDB Vector Store
-    participant LLM as Quantized Mistral 7B
+    participant LLM as Quantized Qwen3-8B
     participant CTX as Context Builder
     participant TELE as Live Telemetry
 

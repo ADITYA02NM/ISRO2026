@@ -44,7 +44,7 @@ An **autonomous, air-gapped AI NOC Copilot** that:
 
 1. ✅ Simulates a realistic multi-site SD-WAN/MPLS topology with fault injection
 2. ✅ Predicts network failures using ML (LSTM, Prophet, graph anomaly detection)
-3. ✅ Runs a fully offline quantized LLM (Mistral 7B / LLaMA 3) with RAG over internal runbooks
+3. ✅ Runs a fully offline quantized LLM (Qwen3-8B / Qwen3-4B-Thinking) with RAG over internal runbooks
 4. ✅ Answers three critical questions in real time:
    - **Q1:** *What is likely to fail next — and when?*
    - **Q2:** *Why is risk elevated — which signals contributed?*
@@ -57,7 +57,7 @@ An **autonomous, air-gapped AI NOC Copilot** that:
 | Feature | Description |
 |---------|-------------|
 | 🔮 **Predictive Fault Analytics** | LSTM + Prophet + graph-based anomaly detection with configurable lead-time targets |
-| 🤖 **Offline LLM Copilot** | Quantized Mistral 7B / LLaMA 3 with local RAG — zero cloud dependency |
+| 🤖 **Offline LLM Copilot** | Quantized Qwen3-8B / Qwen3-4B-Thinking with local RAG — zero cloud dependency |
 | 🌐 **Realistic Network Simulation** | Containerlab-based multi-site topology (branch/hub/datacenter) with MPLS, BGP, IPSec |
 | 📊 **NOC Dashboard** | 3D WebGL dashboard with anime.js micro-interactions, real-time telemetry overlays |
 | 🔐 **Air-Gap First Design** | All inference, storage, and retrieval operates within the air-gapped boundary |
@@ -80,7 +80,7 @@ An **autonomous, air-gapped AI NOC Copilot** that:
 │  └──────────┘   │  → Kafka)    │                ▼                   │
 │                 └──────────────┘   ┌───────────────────────────┐   │
 │                                    │    LLM Copilot (Offline)  │   │
-│  ┌──────────┐                      │  Mistral 7B · RAG · QA   │   │
+│  ┌──────────┐                      │  Qwen3-8B · RAG · QA   │   │
 │  │Fault     │─────────────────────▶│  ChromaDB · LangChain    │   │
 │  │Injection │                      └────────────┬──────────────┘   │
 │  │Engine    │                                   │                   │
@@ -114,7 +114,7 @@ You'll wear four hats across 10 build sessions. Each session is designed to be *
 |------|----------|----------------|
 | 🌐 **Network Engineer** | 1–3 | Containerlab topology, FRRouting (BGP/OSPF/MPLS), IPSec tunnels, TRex traffic generation, fault injection engine |
 | 📊 **Telemetry & ML Engineer** | 4–6 | Telegraf/Prometheus/Kafka pipeline, LSTM forecaster, Prophet seasonal model, GNN anomaly detection, XGBoost ensemble fusion |
-| 🤖 **LLM & RAG Engineer** | 7–8 | Ollama + Mistral 7B (quantized), ChromaDB vector store, LangChain RAG pipeline, FastAPI copilot with WebSocket |
+| 🤖 **LLM & RAG Engineer** | 7–8 | Ollama + Qwen3-8B (quantized), ChromaDB vector store, LangChain RAG pipeline, FastAPI copilot with WebSocket |
 | 🎨 **Frontend & Infrastructure** | 9–10 | NOC Dashboard (React + Three.js 3D + anime.js + ECharts), Floci local AWS integration, air-gap hardening, full validation |
 
 ### 📐 Interface Contracts (Decoupled Architecture)
@@ -142,7 +142,7 @@ Each layer communicates through well-defined interfaces. Build and test against 
 | **S4** | Telemetry | Telegraf + Prometheus + Kafka + ES | 10 files | Prometheus targets all UP, Kafka topics receiving messages |
 | **S5** | ML | Training data + LSTM model | 10 files | `train_lstm.py` completes, eval F1 > 0.80 on validation set |
 | **S6** | ML | Prophet + GNN + XGBoost ensemble | 8 files | Ensemble F1 > 0.85, ONNX export passes |
-| **S7** | LLM | Ollama + Mistral 7B GGUF | 6 files | `ollama run airgap-mistral` works offline, prompt template tested |
+| **S7** | LLM | Ollama + Qwen3-8B GGUF | 6 files | `ollama run airgap-mistral` works offline, prompt template tested |
 | **S8** | LLM | ChromaDB + RAG + FastAPI copilot | 10 files | `curl /api/v1/chat` returns structured response, WebSocket connects |
 | **S9** | Frontend | NOC Dashboard (3D + anime.js) | 15 files | `npm run dev` shows 3D topology, real-time charts, chat panel |
 | **S10** | All | Integration + Validation + Air-Gap | 8 files | All 7 fault scenarios pass, `airgap-verify.sh` ALL PASS |
@@ -236,8 +236,8 @@ Session 10 ├── sim/faults/run_validation_suite.sh, data/validation/*
 ### Offline LLM & RAG
 | Component | Technology |
 |-----------|------------|
-| **Base LLM** | Mistral 7B Instruct v0.3 (4-bit GPTQ quantized) |
-| **Fallback** | LLaMA 3 8B / Phi-3-mini (GGUF quantized) |
+| **Base LLM** | Qwen3-8B (Q4_K_M, 6.0 GB VRAM — full GPU on RTX 4060) |
+| **Fallback** | Qwen3-4B-Thinking (Q5_K_M, 3.9 GB) |
 | **Inference** | llama.cpp / Ollama (offline mode) |
 | **Vector Store** | ChromaDB (local, no telemetry) |
 | **RAG Framework** | LangChain (local-only retrievers) |
@@ -272,8 +272,8 @@ Session 10 ├── sim/faults/run_validation_suite.sh, data/validation/*
 - **Python** 3.11+
 - **Go** 1.22+ (for Containerlab)
 - **Make** 4.0+
-- **At least 32 GB RAM** (64 GB recommended for LLM + simulation)
-- **NVIDIA GPU** with 8 GB+ VRAM (optional, for LLM acceleration)
+- **At least 16 GB RAM** (15 GB available on dev machine — will be tight with LLM + Docker)
+- **NVIDIA RTX 4060 Laptop** 8 GB VRAM (CUDA 13.3) — Qwen3-8B Q4_K_M fits entirely on GPU (6.0 GB)
 
 ### Quick Start
 
@@ -445,7 +445,7 @@ Sensitive credentials, API keys, and operational rules are stored in [`SR.md`](.
 | Criterion | Weight | How We Address It |
 |-----------|--------|-------------------|
 | **Technical Merit** | 35% | Multi-model ensemble (LSTM + Prophet + GNN + XGBoost) with configurable lead-time targets; fault injection ground-truth validation |
-| **Copilot Effectiveness** | 35% | Quantized Mistral 7B with local RAG; structured responses (prediction, confidence, root cause, scope, action); human-validated on 10+ scenarios |
+| **Copilot Effectiveness** | 35% | Qwen3-8B (Q4_K_M, full GPU 6.0 GB on RTX 4060) with local RAG; structured responses (prediction, confidence, root cause, scope, action); human-validated on 10+ scenarios |
 | **Security & Offline Compliance** | 20% | Verifiable air-gap integrity scanner; zero cloud dependencies; local Floci emulation; all model artifacts bundled |
 | **Documentation Quality** | 10% | Comprehensive README, `info/` docs, architecture diagrams, build guide, runbooks |
 
@@ -459,7 +459,7 @@ Sensitive credentials, API keys, and operational rules are stored in [`SR.md`](.
 |------------|------|--------------|
 | 🌐 **Network Engineer** | Sessions 1–3 | Containerlab topology, FRR (BGP/OSPF/MPLS), IPSec tunnels, TRex traffic, fault injection |
 | 📊 **Data/ML Engineer** | Sessions 4–6 | Telegraf/Prometheus/Kafka pipeline, LSTM + Prophet + GNN models, XGBoost ensemble |
-| 🤖 **LLM/RAG Engineer** | Sessions 7–8 | Ollama + Mistral 7B (quantized), ChromaDB vector store, LangChain RAG, FastAPI copilot |
+| 🤖 **LLM/RAG Engineer** | Sessions 7–8 | Ollama + Qwen3-8B (quantized), ChromaDB vector store, LangChain RAG, FastAPI copilot |
 | 🎨 **Frontend + Infra** | Sessions 9–10 | NOC Dashboard (React + Three.js + anime.js + ECharts), Floci integration, air-gap validation |
 
 ---
@@ -473,5 +473,5 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 <div align="center">
   <sub>Built with ❤️ for ISRO Bharatiya Antariksh Hackathon 2026 — Challenge 13</sub>
   <br>
-  <sub>Powered by <a href="https://github.com/floci-io/floci">Floci</a> · Containerlab · Mistral 7B · Three.js</sub>
+  <sub>Powered by <a href="https://github.com/floci-io/floci">Floci</a> · Containerlab · Qwen3-8B · Three.js</sub>
 </div>

@@ -63,10 +63,10 @@
 
 | Resource | URL | Purpose |
 |----------|-----|---------|
-| **Mistral 7B** | [huggingface.co/mistralai/Mistral-7B-Instruct-v0.3](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) | Base LLM model |
-| Mistral 7B (GPTQ) | [huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GPTQ](https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GPTQ) | Quantized version |
-| **LLaMA 3 8B** | [huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct) | Fallback LLM (requires access) |
-| **Phi-3-mini** | [huggingface.co/microsoft/Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct) | Lightweight fallback |
+| **Qwen3-8B (Q4_K_M)** | [huggingface.co/Qwen/Qwen3-8B](https://huggingface.co/Qwen/Qwen3-8B) | Primary LLM — full GPU on RTX 4060 (6.0 GB) |
+| **Qwen3-4B-Thinking (Q5_K_M)** | [huggingface.co/Qwen/Qwen3-4B-Thinking](https://huggingface.co/Qwen/Qwen3-4B-Thinking) | Backup/faster LLM (3.9 GB, 33 tok/s) |
+| **Qwen3-8B GGUF** | [huggingface.co/Qwen/Qwen3-8B-GGUF](https://huggingface.co/Qwen/Qwen3-8B-GGUF) | GGUF quantized version for llama.cpp |
+| **Qwen3-4B Instruct** | [huggingface.co/Qwen/Qwen3-4B-Instruct](https://huggingface.co/Qwen/Qwen3-4B-Instruct) | Lightweight variant for rapid experiments |
 | **llama.cpp** | [github.com/ggerganov/llama.cpp](https://github.com/ggerganov/llama.cpp) | LLM inference (CPU-optimized) |
 | llama.cpp Quantization | [github.com/ggerganov/llama.cpp#quantization](https://github.com/ggerganov/llama.cpp#quantization) | GGUF quantization guide |
 | **Ollama** | [ollama.ai](https://ollama.ai) | Easy LLM deployment |
@@ -168,7 +168,7 @@
 |----------|-----|
 | Building RAG from Scratch (LangChain) | [python.langchain.com/docs/tutorials/rag](https://python.langchain.com/docs/tutorials/rag) |
 | llama.cpp Setup Guide | [github.com/ggerganov/llama.cpp#setup](https://github.com/ggerganov/llama.cpp#setup) |
-| Mistral 7B Model Card | [huggingface.co/mistralai/Mistral-7B-Instruct-v0.3](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3) |
+| Qwen3-8B Model Card | [huggingface.co/Qwen/Qwen3-8B](https://huggingface.co/Qwen/Qwen3-8B) |
 | Quantization Guide (GPTQ vs GGUF) | [huggingface.co/docs/transformers/quantization](https://huggingface.co/docs/transformers/quantization) |
 
 ### Containerlab

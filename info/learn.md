@@ -617,7 +617,7 @@ Week 4:  XGBoost ensemble + ONNX export + hyperparameter tuning
 ### If You're Building the LLM Copilot (Sessions 7-8)
 
 ```
-Week 1:  LLM fundamentals + Ollama + Mistral 7B setup
+Week 1:  LLM fundamentals + Ollama + Qwen3-8B setup (fits RTX 4060 8GB)
 Week 2:  LangChain RAG + ChromaDB + embeddings
 Week 3:  FastAPI + WebSocket + copilot API design
 ```

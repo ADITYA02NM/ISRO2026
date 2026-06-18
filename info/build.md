@@ -70,10 +70,10 @@ Each layer communicates through mocks. Build and test independently, then connec
 # Verify host system
 cat /etc/os-release       # Ubuntu 22.04+ or RHEL 9+
 uname -r                  # Kernel 5.15+
-nproc                     # 16+ cores recommended
-free -h                   # 32 GB RAM min, 64 GB recommended
-nvidia-smi                # Optional: GPU with 8 GB+ VRAM
-df -h /                   # 100 GB+ free space
+nproc                     # 8 cores (Ryzen 9 8945HS)
+free -h                   # ~15 GB RAM (16 GB recommended — tight with Docker + LLM)
+nvidia-smi                # NVIDIA RTX 4060 Laptop 8 GB VRAM (CUDA 13.3)
+df -h /                   # ~275 GB free space
 ```
 
 ### Step 0.2 — Install Dependencies
@@ -482,29 +482,34 @@ python3 evaluate/run_evaluation.py \
 # Option A: Use Ollama (easier)
 cd copilot/llm
 
-# Download Mistral 7B (once — before air-gapping)
-ollama pull mistral:7b-instruct-v0.3-q4_K_M
+# Download Qwen3-8B (once — before air-gapping)
+# RTX 4060 8GB — fits entirely on GPU (6.0 GB VRAM)
+ollama pull qwen3:8b-q4_K_M
 
 # Verify it runs offline
-ollama run mistral:7b-instruct-v0.3-q4_K_M "Hello" --nowordwrap
+ollama run qwen3:8b-q4_K_M "Hello" --nowordwrap
 
 # Save model for offline use
-ollama cp mistral:7b-instruct-v0.3-q4_K_M airgap-mistral
+ollama cp qwen3:8b-q4_K_M airgap-qwen3
 
-# Option B: Manual GGUF (for llama.cpp)
+# Option B: Faster backup — Qwen3-4B-Thinking (3.9 GB, 33 tok/s)
+ollama pull qwen3:4b-thinking-q5_K_M
+ollama cp qwen3:4b-thinking-q5_K_M airgap-qwen3-fast
+
+# Option C: Manual GGUF (for llama.cpp)
 # Download GGUF:
-wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/mistral-7b-instruct-v0.3.Q4_K_M.gguf
+wget https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/qwen3-8b-Q4_K_M.gguf
 mv *.gguf models/
 
 # Create Ollama Modelfile for offline
 cat > Modelfile << 'EOF'
-FROM ./mistral-7b-instruct-v0.3.Q4_K_M.gguf
+FROM ./qwen3-8b-Q4_K_M.gguf
 PARAMETER temperature 0.3
 PARAMETER top_p 0.9
 PARAMETER num_ctx 4096
 EOF
 
-ollama create airgap-mistral -f Modelfile
+ollama create airgap-qwen3 -f Modelfile
 ```
 
 ### Step 4.2 — Set Up ChromaDB
@@ -821,7 +826,8 @@ tar czf python-packages.tar.gz packages/
 - [ ] Kafka topics created and messages flowing
 - [ ] Predictive models loaded and serving inference
 - [ ] ChromaDB populated with runbook embeddings
-- [ ] Ollama serving Mistral 7B locally (no internet)
+- [ ] Ollama serving Qwen3-8B locally (no internet) — full GPU, ~21 tok/s
+- [ ] Qwen3-4B-Thinking available as faster fallback (~33 tok/s, 3.9 GB)
 - [ ] Copilot API responding with structured answers
 - [ ] NOC Dashboard loading with 3D topology
 - [ ] WebSocket real-time updates working
