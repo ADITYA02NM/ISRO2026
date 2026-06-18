@@ -102,6 +102,108 @@ An **autonomous, air-gapped AI NOC Copilot** that:
 
 ---
 
+## 🗺 Development Roadmap
+
+> **Solo developer strategy — build one role at a time, session by session.**
+
+### 👤 Role Strategy (Solo Developer)
+
+You'll wear four hats across 10 build sessions. Each session is designed to be **completed independently** with clear deliverables.
+
+| Role | Sessions | What You Build |
+|------|----------|----------------|
+| 🌐 **Network Engineer** | 1–3 | Containerlab topology, FRRouting (BGP/OSPF/MPLS), IPSec tunnels, TRex traffic generation, fault injection engine |
+| 📊 **Telemetry & ML Engineer** | 4–6 | Telegraf/Prometheus/Kafka pipeline, LSTM forecaster, Prophet seasonal model, GNN anomaly detection, XGBoost ensemble fusion |
+| 🤖 **LLM & RAG Engineer** | 7–8 | Ollama + Mistral 7B (quantized), ChromaDB vector store, LangChain RAG pipeline, FastAPI copilot with WebSocket |
+| 🎨 **Frontend & Infrastructure** | 9–10 | NOC Dashboard (React + Three.js 3D + anime.js + ECharts), Floci local AWS integration, air-gap hardening, full validation |
+
+### 📐 Interface Contracts (Decoupled Architecture)
+
+Each layer communicates through well-defined interfaces. Build and test against **mocked versions** first, then connect real components in Session 10.
+
+| ID | Interface | Direction | Format | What Passes |
+|----|-----------|-----------|--------|-------------|
+| IF-01 | Topology → Telemetry | Network → Pipeline | SNMP/gNMI metrics | Interface counters, BGP events, latency probes |
+| IF-02 | Telemetry → ML | Pipeline → Engine | Feature vectors (CSV/Parquet) | 32-dim time-windowed features with labels |
+| IF-03 | ML → LLM Copilot | Engine → API | JSON prediction event | `{ type, probability, tti, affected_scope }` |
+| IF-04 | LLM Copilot → Dashboard | API → UI | WebSocket JSON stream | Alerts, predictions, topology changes |
+| IF-05 | Floci → All | Infrastructure → Every Layer | AWS SDK calls | S3 storage, DynamoDB records, SQS events |
+| IF-06 | Fault Injection → Topology | Test → Network | CLI/Python | Netem delay/loss, BGP flaps, link shutdowns |
+
+> **Build tip:** Mock IF-01 through IF-04 during development. Only connect the full pipeline in Session 10.
+
+### 📅 10-Session Build Schedule
+
+| Session | Role | Build | Files | Definition of Done |
+|---------|------|-------|-------|-------------------|
+| **S1** | Infra | Environment + Floci | 8 files | `docker compose up` for Floci, `make health-check` passes |
+| **S2** | Network | Containerlab topology + FRR configs | 12 files | `sudo containerlab inspect` shows all nodes, BGP/OSPF established |
+| **S3** | Network | TRex traffic + Fault injection | 8 files | Traffic flowing, `./fault-inject.sh bgp-flap` causes visible changes |
+| **S4** | Telemetry | Telegraf + Prometheus + Kafka + ES | 10 files | Prometheus targets all UP, Kafka topics receiving messages |
+| **S5** | ML | Training data + LSTM model | 10 files | `train_lstm.py` completes, eval F1 > 0.80 on validation set |
+| **S6** | ML | Prophet + GNN + XGBoost ensemble | 8 files | Ensemble F1 > 0.85, ONNX export passes |
+| **S7** | LLM | Ollama + Mistral 7B GGUF | 6 files | `ollama run airgap-mistral` works offline, prompt template tested |
+| **S8** | LLM | ChromaDB + RAG + FastAPI copilot | 10 files | `curl /api/v1/chat` returns structured response, WebSocket connects |
+| **S9** | Frontend | NOC Dashboard (3D + anime.js) | 15 files | `npm run dev` shows 3D topology, real-time charts, chat panel |
+| **S10** | All | Integration + Validation + Air-Gap | 8 files | All 7 fault scenarios pass, `airgap-verify.sh` ALL PASS |
+
+**Total: ~95 files created across 10 sessions. Each session is 4–6 hours of focused work.**
+
+### 🎯 Official Challenge Phase Mapping
+
+| Official Phase | Our Sessions | Weight |
+|----------------|--------------|--------|
+| **Phase 1:** Data Generation & Labeling | S2–S4 | — |
+| **Phase 2:** Model Training & Validation | S5–S6 | — |
+| **Phase 3:** Offline LLM & RAG Integration | S7–S8 | — |
+| **Phase 4:** NOC Dashboard & Visualization | S9 | — |
+| **Phase 5:** End-to-End Evaluation | S10 | — |
+| **Phase 6:** Optimization & Air-Gap Hardening | S10 | — |
+
+### 📂 File Inventory (What Gets Built)
+
+```
+Session 1  ├── docker/floci.yml, docker/network.yml, docker/telemetry.yml
+            ├── docker/copilot.yml, Makefile, scripts/deploy.sh
+            ├── scripts/health-check.sh, scripts/airgap-verify.sh
+
+Session 2  ├── sim/topology.clab.yml, sim/frr/pe1/daemons, sim/frr/pe1/frr.conf
+            ├── sim/frr/pe2/*, sim/frr/pe3/*, sim/frr/p1/*, sim/frr/p2/*, sim/frr/p3/*
+            ├── sim/frr/ce-a1/*, sim/frr/ce-a2/*, sim/frr/ce-b1/*, sim/frr/ce-b2/*
+
+Session 3  ├── sim/traffic/profiles/*.yaml, sim/traffic/start-traffic.sh
+            ├── sim/faults/inject-congestion.sh, sim/faults/inject-bgp-flap.sh
+            ├── sim/faults/inject-link-failure.sh, sim/faults/inject-latency.sh
+            ├── sim/faults/inject-packet-loss.sh, sim/faults/run-suite.sh
+
+Session 4  ├── telemetry/telegraf/telegraf.conf, telemetry/prometheus/prometheus.yml
+            ├── telemetry/prometheus/alerts.yml, telemetry/kafka/create-topics.sh
+            ├── telemetry/stream-processor.py, telemetry/elasticsearch/init.sh
+
+Session 5  ├── ml/prepare_dataset.py, ml/features/build_features.py
+            ├── ml/features/config.yaml, ml/trainers/train_lstm.py
+            ├── ml/evaluate/evaluate_model.py, ml/run-training-scenarios.sh
+
+Session 6  ├── ml/trainers/train_prophet.py, ml/trainers/train_gnn.py
+            ├── ml/trainers/train_ensemble.py, ml/trainers/generate_meta_features.py
+            ├── ml/export_to_onnx.py, ml/evaluate/run_evaluation.py
+
+Session 7  ├── copilot/llm/Modelfile, copilot/llm/download.sh
+            ├── copilot/rag/populate_vector_db.py, copilot/rag/query_vector_db.py
+
+Session 8  ├── copilot/api/main.py, copilot/api/requirements.txt
+            ├── copilot/api/context_builder.py, copilot/api/response_formatter.py
+            ├── copilot/runbooks/*.md (5+ runbooks)
+
+Session 9  ├── dashboard/package.json, dashboard/tsconfig.json
+            ├── dashboard/src/* (15+ React components)
+            ├── dashboard/public/*, dashboard/index.html
+
+Session 10 ├── sim/faults/run_validation_suite.sh, data/validation/*
+```
+
+---
+
 ## 🛠 Tech Stack
 
 ### Network Simulation
@@ -349,17 +451,16 @@ Sensitive credentials, API keys, and operational rules are stored in [`SR.md`](.
 
 ---
 
-## 👥 Team
+## 👤 Solo Developer
 
-> *Your team name — ISRO BAH 2026*
+> **Built by a solo developer — wearing all four hats across 10 sessions.**
 
-| Role | Responsibility |
-|------|----------------|
-| **Network Architect** | Containerlab topology, FRR configs, fault injection |
-| **ML Engineer** | Predictive models (LSTM, Prophet, GNN), feature pipeline |
-| **LLM / RAG Engineer** | Quantized model deployment, ChromaDB, LangChain pipeline |
-| **Full-Stack Developer** | NOC Dashboard (React, Three.js, anime.js, Grafana) |
-| **DevOps / Security** | Floci integration, air-gap verification, CI/CD |
+| Role (Hat) | When | Deliverables |
+|------------|------|--------------|
+| 🌐 **Network Engineer** | Sessions 1–3 | Containerlab topology, FRR (BGP/OSPF/MPLS), IPSec tunnels, TRex traffic, fault injection |
+| 📊 **Data/ML Engineer** | Sessions 4–6 | Telegraf/Prometheus/Kafka pipeline, LSTM + Prophet + GNN models, XGBoost ensemble |
+| 🤖 **LLM/RAG Engineer** | Sessions 7–8 | Ollama + Mistral 7B (quantized), ChromaDB vector store, LangChain RAG, FastAPI copilot |
+| 🎨 **Frontend + Infra** | Sessions 9–10 | NOC Dashboard (React + Three.js + anime.js + ECharts), Floci integration, air-gap validation |
 
 ---
 

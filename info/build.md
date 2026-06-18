@@ -2,8 +2,48 @@
 
 > **From zero to fully operational Air-Gapped Predictive Copilot**
 >
-> Estimated time: **40-60 hours** (team of 4-5)
+> Estimated time: **40-60 hours** solo (or 15-20h with a team of 4-5)
 > Prerequisites: See [resources.md](./resources.md) for tool installation links.
+> Learning path: See [learn.md](./learn.md) for beginner-friendly tutorials.
+
+---
+
+## 🧑‍💻 Solo Developer Strategy
+
+This build guide is organized into **7 sequential phases**. If you're building solo, here's how to optimize:
+
+### Role-by-Role Build Order
+
+| Phase | Role | Focus | Key Tools | Sessions |
+|-------|------|-------|-----------|----------|
+| 0 | Infrastructure | Env setup, Docker, Floci | Docker, Make | S1 |
+| 1 | Network Engineer | Topology, routing, traffic, faults | Containerlab, FRR, TRex | S2–S3 |
+| 2 | Telemetry Engineer | Metrics pipeline, streaming | Telegraf, Prometheus, Kafka | S4 |
+| 3 | ML Engineer | Predictive models, ensemble | PyTorch, Prophet, XGBoost | S5–S6 |
+| 4 | LLM Engineer | Ollama, RAG, copilot API | Ollama, ChromaDB, LangChain | S7–S8 |
+| 5 | Full-Stack Dev | NOC Dashboard | React, Three.js, anime.js | S9 |
+| 6 | DevOps | Integration, validation, air-gap | All tools | S10 |
+
+### Interface Contracts (Build in Isolation)
+
+Each layer communicates through mocks. Build and test independently, then connect at the end.
+
+| IF-ID | Between | Data Format | Mock Strategy |
+|-------|---------|-------------|---------------|
+| IF-01 | Topology → Telemetry | SNMP/gNMI metrics | Use a Python script to emit fake SNMP data |
+| IF-02 | Telemetry → ML | Parquet feature vectors | Generate synthetic training data |
+| IF-03 | ML → LLM Copilot | JSON prediction `{type, prob, tti, scope}` | Hardcode sample predictions |
+| IF-04 | Copilot → Dashboard | WebSocket JSON | Test with `wscat` or mock WebSocket server |
+| IF-05 | Floci → All | AWS SDK calls | Floci runs locally, no creds needed |
+| IF-06 | Fault Injection → Topology | CLI/Python commands | Test manually on a single container first |
+
+### Solo Tips
+
+- **Session = one sitting (4-6h).** Each session produces working, testable output.
+- **Test before moving on.** Each session has a clear "Definition of Done."
+- **Mock aggressively.** Don't wait for all layers to finish — mock IF-01 through IF-04.
+- **Use `Makefile` shortcuts.** `make health-check` catches regressions immediately.
+- **Read [`learn.md`](./learn.md)** if you're new to any technology in this stack.
 
 ---
 
