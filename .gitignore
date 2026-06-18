@@ -1,0 +1,77 @@
+# ─── SECRETS (NEVER COMMIT) ─────────────────────────────────────────
+SR.md
+.env
+*.key
+*.pem
+*.p12
+*.pfx
+**/secrets/
+
+# ─── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# ─── Node / JS ─────────────────────────────────────────────────────
+node_modules/
+dist/
+.next/
+build/
+*.tsbuildinfo
+
+# ─── ML Models (Large Binary Files) ────────────────────────────────
+ml/models/**/*.pt
+ml/models/**/*.pkl
+ml/models/**/*.gguf
+ml/models/**/*.onnx
+ml/models/**/*.bin
+ml/models/**/*.safetensors
+!ml/models/*.md
+
+# ─── Data (Generated) ──────────────────────────────────────────────
+data/
+*.parquet
+*.csv
+!data/*.md
+telemetry/prometheus/data/
+
+# ─── Docker ────────────────────────────────────────────────────────
+docker/images/*.tar
+docker/python-packages.tar.gz
+
+# ─── IDE / OS ──────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Logs ──────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Telemetry ─────────────────────────────────────────────────────
+telemetry/kafka/data/
+telemetry/elasticsearch/data/
+telemetry/grafana/data/
+telemetry/prometheus/data/
+
+# ─── Simulator ──────────────────────────────────────────────────────
+sim/*.yml.bak
+sim/clab-*/
+
+# ─── Dashboard ─────────────────────────────────────────────────────
+dashboard/dist/
+dashboard/.env
+
+# ─── Floci ─────────────────────────────────────────────────────────
+floci/data/
+floci/*.bak
