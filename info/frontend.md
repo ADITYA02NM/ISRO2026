@@ -173,101 +173,92 @@ anime.js is used for **performance-safe, declarative animations** across the das
 ### Animation Registry
 
 ```typescript
-import anime from 'animejs';
+import { animate, stagger } from 'animejs';
 
 // ─── Alert Panel ──────────────────────────────────
 // New alert slides in from the right with a pulse glow
-anime({
-  targets: '.alert-item-new',
-  translateX: [100, 0],
+animate('.alert-item-new', {
+  x: [100, 0],
   opacity: [0, 1],
   duration: 400,
-  easing: 'easeOutExpo'
+  ease: 'outExpo'
 });
 
 // ─── Alert Severity Badge ─────────────────────────
 // Critical alerts get a breathing pulse animation
-anime({
-  targets: '.badge-critical',
+animate('.badge-critical', {
   scale: [1, 1.05, 1],
   opacity: [1, 0.8, 1],
   duration: 2000,
   loop: true,
-  easing: 'easeInOutSine'
+  ease: 'inOutSine'
 });
 
 // ─── Network Edge Health ──────────────────────────
 // When a link degrades, the edge gets a warning flash
-anime({
-  targets: '.edge-warning',
+animate('.edge-warning', {
   stroke: ['#22c55e', '#f59e0b', '#ef4444'],
   duration: 1200,
   direction: 'alternate',
   loop: 3,
-  easing: 'easeInOutQuad'
+  ease: 'inOutQuad'
 });
 
 // ─── Metric Counter ───────────────────────────────
 // Numbers count up when a new value arrives
-anime({
-  targets: '.metric-value',
+animate('.metric-value', {
   innerHTML: [0, newValue],
   duration: 800,
   round: 1,
-  easing: 'easeOutCubic'
+  ease: 'outCubic'
 });
 
 // ─── Prediction Card ──────────────────────────────
 // Confidence score radial bar fills with a delay
-anime({
-  targets: '.confidence-ring',
-  strokeDashoffset: [anime.setDashoffset, 0],
+animate('.confidence-ring', {
+  strokeDashoffset: [100, 0],
   duration: 1500,
   delay: 500,
-  easing: 'easeOutCubic'
+  ease: 'outCubic'
 });
 
 // ─── Status Dot Pulse ─────────────────────────────
 // Site health dots pulse gently when stable
-anime({
-  targets: '.status-dot',
+animate('.status-dot', {
   scale: [1, 1.3, 1],
   opacity: [1, 0.7, 1],
   duration: 3000,
   loop: true,
-  easing: 'easeInOutSine',
-  delay: (el, i) => i * 200
+  ease: 'inOutSine',
+  delay: stagger(200)
 });
 
 // ─── Incident Timeline ────────────────────────────
 // Timeline events stagger in on load
-anime({
-  targets: '.timeline-item',
-  translateY: [30, 0],
+animate('.timeline-item', {
+  y: [30, 0],
   opacity: [0, 1],
-  delay: anime.stagger(60),
-  easing: 'easeOutQuad'
+  delay: stagger(60),
+  ease: 'outQuad'
 });
 
 // ─── Traffic Flow Density ──────────────────────────
 // Pulse intensity on high-traffic edges
-anime({
-  targets: '.traffic-particle',
+animate('.traffic-particle', {
   opacity: [0.3, 1],
   scale: [1, 1.5],
   duration: 1000,
   direction: 'alternate',
   loop: true,
-  delay: (el, i) => i * 50
+  delay: stagger(50)
 });
 
 // ─── Typing Effect for Copilot ────────────────────
 // LLM responses type out character by character
-anime({
-  targets: '.copilot-response',
+animate('.copilot-response', {
   opacity: [0, 1],
   duration: 300,
-  easing: 'linear'
+  ease: 'linear'
 });
 // (Typing managed by character reveal in React state)
 ```
@@ -401,7 +392,7 @@ src/
 | Three.js | r170+ | 3D rendering |
 | React Three Fiber | 8.x | React bindings for Three.js |
 | Drei | 9.x | R3F utilities |
-| anime.js | 3.2+ | Micro-interactions |
+| anime.js | 4.4+ | Micro-interactions |
 | Apache ECharts | 5.5+ | Charts |
 | Zustand | 5.x | State management |
 | React Query | 5.x | Server state |
@@ -416,21 +407,21 @@ src/
 ### Loading Screen
 
 ```typescript
+import { animate } from 'animejs';
+
 // Animated ISRO logo + system initialization progress
-anime({
-  targets: '#loading-ring',
+animate('#loading-ring', {
   rotate: 360,
   duration: 2000,
   loop: true,
-  easing: 'linear'
+  ease: 'linear'
 });
 
-anime({
-  targets: '#loading-progress',
+animate('#loading-progress', {
   width: ['0%', '100%'],
   duration: 3000,
-  easing: 'easeInOutCubic',
-  complete: () => { /* transition to dashboard */ }
+  ease: 'inOutCubic',
+  onComplete: () => { /* transition to dashboard */ }
 });
 ```
 
@@ -439,8 +430,7 @@ anime({
 When a critical alert fires, the entire dashboard header pulses red twice:
 
 ```typescript
-anime({
-  targets: '.dashboard-header',
+animate('.dashboard-header', {
   backgroundColor: [
     'rgba(239, 68, 68, 0)',
     'rgba(239, 68, 68, 0.15)',
@@ -449,7 +439,7 @@ anime({
     'rgba(239, 68, 68, 0)'
   ],
   duration: 1500,
-  easing: 'steps(5)'
+  ease: 'steps(5)'
 });
 ```
 

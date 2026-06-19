@@ -680,7 +680,7 @@ export function NetworkGraph() {
 ```typescript
 // dashboard/src/hooks/useAnimations.ts
 import { useEffect, useRef } from 'react';
-import anime from 'animejs';
+import { animate } from 'animejs';
 
 export function useAlertAnimation(alertId: string, severity: string) {
   const ref = useRef<HTMLDivElement>(null);
@@ -689,8 +689,7 @@ export function useAlertAnimation(alertId: string, severity: string) {
     if (!ref.current || severity !== 'critical') return;
 
     // Critical alert pulse
-    const animation = anime({
-      targets: ref.current,
+    const animation = animate(ref.current, {
       scale: [1, 1.02, 1],
       boxShadow: [
         '0 0 0 rgba(239, 68, 68, 0)',
@@ -699,7 +698,7 @@ export function useAlertAnimation(alertId: string, severity: string) {
       ],
       duration: 1500,
       loop: true,
-      easing: 'easeInOutSine'
+      ease: 'inOutSine'
     });
 
     return () => animation.pause();

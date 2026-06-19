@@ -426,12 +426,12 @@
 | React Three Fiber Examples | 🟡 Intermediate | Examples | [docs.pmnd.rs/react-three-fiber/getting-started/examples](https://docs.pmnd.rs/react-three-fiber/getting-started/examples) |
 | 3D Network Graphs with Three.js | 🔴 Advanced | Tutorial | [observablehq.com/@d3/network-graph](https://observablehq.com/@d3/network-graph) |
 
-### ✨ anime.js
+### ✨ anime.js (v4.4+)
 
 | Resource | Difficulty | Type | URL |
 |----------|-----------|------|-----|
 | anime.js Documentation | 🟢 Beginner | Docs | [animejs.com/documentation](https://animejs.com/documentation) |
-| anime.js Getting Started | 🟢 Beginner | Guide | [animejs.com](https://animejs.com) |
+| anime.js V3 to V4 Migration | 🟡 Intermediate | Guide | [github.com/juliangarnier/anime/wiki/Migrating-from-v3-to-v4](https://github.com/juliangarnier/anime/wiki/Migrating-from-v3-to-v4) |
 | anime.js GitHub | 🟡 Intermediate | Repo | [github.com/juliangarnier/anime](https://github.com/juliangarnier/anime) |
 | anime.js Examples & Demos | 🟢 Beginner | Examples | [animejs.com/documentation/#scratchpad](https://animejs.com/documentation/#scratchpad) |
 | anime.js Stagger Animations | 🟡 Intermediate | Guide | [animejs.com/documentation/#stagger](https://animejs.com/documentation/#stagger) |

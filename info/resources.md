@@ -90,7 +90,7 @@
 | Three.js Documentation | [threejs.org/docs](https://threejs.org/docs) | API reference |
 | **React Three Fiber** | [docs.pmnd.rs/react-three-fiber](https://docs.pmnd.rs/react-three-fiber) | React renderer for Three.js |
 | **Drei** | [github.com/pmndrs/drei](https://github.com/pmndrs/drei) | R3F utility helpers |
-| **anime.js** | [animejs.com](https://animejs.com) | Animation library |
+| **anime.js** | [animejs.com](https://animejs.com) | Animation library (v4.4.1+ ESM modular) |
 | anime.js Documentation | [animejs.com/documentation](https://animejs.com/documentation) | API reference |
 | anime.js GitHub | [github.com/juliangarnier/anime](https://github.com/juliangarnier/anime) | Source code & examples |
 | **Apache ECharts** | [echarts.apache.org](https://echarts.apache.org) | Charting library |
