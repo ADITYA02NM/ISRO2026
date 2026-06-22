@@ -2,124 +2,175 @@
 
 ## 3-Terminal Architecture Flow
 
-```mermaid
-flowchart TB
-    subgraph T1["Terminal 1 — Devices UI (5173)"]
-        direction TB
-        T1_R3F["R3F 3D Scene<br/>Interactive Devices<br/>Hover Info Panels"]
-        T1_UI["HTML Overlays<br/>Fault Injection<br/>Lockdown Button"]
-        T1_REST["REST Client<br/>(Fetch API)"]
-    end
-
-    subgraph T2["Terminal 2 — Backend (8000)"]
-        direction TB
-        T2_REST["FastAPI REST Layer"]
-        T2_WS["FastAPI WebSocket Layer"]
-        T2_LLM["LLM Orchestrator<br/>Qwen3-8B + 4B"]
-        T2_DATA["Device State<br/>Telemetry Data"]
-    end
-
-    subgraph T3["Terminal 3 — Dashboard UI (5174)"]
-        direction TB
-        T3_R3F["R3F 3D Scene<br/>Analytics Overlays"]
-        T3_WS["WebSocket Client<br/>Auto-Reconnect"]
-        T3_UI["Alert Feed<br/>Copilot Panel<br/>Lockdown + Send Help"]
-        T3_ECHARTS["ECharts<br/>CPU / Power / Trends"]
-    end
-
-    T1_R3F -->|"click/hover<br/>events"| T1_UI
-    T1_UI -->|"HTTP POST"| T1_REST
-    T1_REST -->|"api/devices/:id/command<br/>api/devices/:id/fault<br/>api/devices/:id/lockdown"| T2_REST
-    T2_REST -->|"process & respond"| T2_DATA
-    T2_DATA -->|"JSON response"| T1_REST
-    T1_REST -->|"state update"| T1_R3F
-
-    T2_DATA -->|"telemetry push<br/>every 5s"| T2_WS
-    T2_LLM -->|"fault analysis<br/>runbook gen"| T2_DATA
-    T2_WS -->|"ws://localhost:8000/ws/telemetry"| T3_WS
-    T2_WS -->|"ws://localhost:8000/ws/alerts"| T3_UI
-    T2_WS -->|"ws://localhost:8000/ws/copilot"| T3_UI
-    T3_WS -->|"state update"| T3_R3F
-    T3_WS -->|"chart data"| T3_ECHARTS
-    T3_UI -->|"lockdown request<br/>(HTTP REST)"| T2_REST
-    T3_UI -->|"send help<br/>(runs LLM runbook)"| T2_LLM
+```
+  ┌───────────────────────────────────────────────────────────────────────────┐
+  │                         3-TERMINAL ARCHITECTURE FLOW                       │
+  ├───────────────────────────────────────────────────────────────────────────┤
+  │                                                                           │
+  │  TERMINAL 1 — Devices UI (5173)          TERMINAL 3 — Dashboard (5174)    │
+  │  ┌────────────────────────┐              ┌──────────────────────────────┐ │
+  │  │  R3F 3D NOC Room       │              │  R3F 3D Analytics Scene      │ │
+  │  │  ┌──────┐  ┌────────┐  │              │  ┌──────────┐  ┌──────────┐  │ │
+  │  │  │ Dev  │  │ Dev    │  │  click/hover  │  │ 3D Room  │  │ Animated │  │ │
+  │  │  │ Node1│  │ Node2  │──┼───────────────┼──│ Overlays  │  │ Graphs   │  │ │
+  │  │  └──────┘  └────────┘  │              │  └──────────┘  └──────────┘  │ │
+  │  └────────┬───────────────┘              └──────┬─────────┬─────────────┘ │
+  │           │  show panel                         │         │               │
+  │           ▼                                     │         │               │
+  │  ┌────────────────────────┐                     │         │               │
+  │  │  HTML Overlay Panel    │                     ▼         ▼               │
+  │  │  ┌────────────────────┐│              ┌──────────┐ ┌──────────┐        │
+  │  │  │ Fault Injection    ││              │ Alert    │ │ ECharts │        │
+  │  │  │ Lockdown Button    ││              │ Feed     │ │ CPU/Pwr │        │
+  │  │  │ Info Display       ││              │ Copilot  │ │ Trends  │        │
+  │  │  └────────┬───────────┘│              └────┬─────┘ └──────────┘        │
+  │  └───────────┼────────────┘                   │                           │
+  │              │  HTTP POST                     │  WebSocket data            │
+  │              ▼                                ▼                           │
+  │  ┌────────────────────────────────────────────────────────────────────┐   │
+  │  │         TERMINAL 2 — FastAPI Backend (Port 8000)                    │   │
+  │  │         ─────────────────────────────────────                       │   │
+  │  │                                                                     │   │
+  │  │  ┌──────────────────────┐     ┌──────────────────────────────┐     │   │
+  │  │  │  REST Layer          │     │  WebSocket Layer              │     │   │
+  │  │  │  ───────────         │     │  ───────────────              │     │   │
+  │  │  │  GET/POST /api/      │     │  /ws/telemetry (every 5s)   │     │   │
+  │  │  │  /devices/:id        │◄───►│  /ws/alerts (on event)       │     │   │
+  │  │  │  /satellites/:id     │     │  /ws/copilot (LLM stream)    │     │   │
+  │  │  │  /faults             │     │  /ws/status (health check)   │     │   │
+  │  │  └─────────┬────────────┘     └─────────────┬────────────────┘     │   │
+  │  │            │                                │                       │   │
+  │  │            ▼                                ▼                       │   │
+  │  │  ┌────────────────────────────────────────────────────────────┐     │   │
+  │  │  │  LLM Orchestrator — Qwen3-8B + Qwen3-4B (Ollama)           │     │   │
+  │  │  │  ─────────────────────────────────────────────────────       │     │   │
+  │  │  │  • Fault analysis & severity  │  • Runbook generation       │     │   │
+  │  │  │  • Copilot streaming Q&A      │  • Alert enrichment        │     │   │
+  │  │  └───────────────────────────────┬────────────────────────────┘     │   │
+  │  │                                  │                                  │   │
+  │  │                                  ▼                                  │   │
+  │  │  ┌────────────────────────────────────────────────────────────┐     │   │
+  │  │  │         Device State / Telemetry Data Store                 │     │   │
+  │  │  │  ─────────────────────────────────────────────────────       │     │   │
+  │  │  │  Satellite Fleet  ·  Ground Antennas  ·  Rovers              │     │   │
+  │  │  │  Sensors  ·  Power Systems  ·  Comm Links  ·  All Devices    │     │   │
+  │  │  └────────────────────────────────────────────────────────────┘     │   │
+  │  └────────────────────────────────────────────────────────────────────┘   │
+  │                                                                           │
+  │  DATA PATHS:                                                              │
+  │  ───────────                                                              │
+  │  REST (T1 ←→ T2):  Device commands, fault injection, lockdown, status     │
+  │  WS (T2 → T3):     Telemetry push, alert events, copilot streaming        │
+  │  Hybrid (T3 → T2): Lockdown via REST, Send Help via WS→LLM               │
+  └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Data Flow — REST Path (Devices UI ↔ Backend)
 
-```mermaid
-sequenceDiagram
-    participant User as 👤 Operator
-    participant UI as 🖥️ Devices UI (R3F)
-    participant Store as 📦 Zustand Store
-    participant API as 🌐 Fetch API (REST)
-    participant Backend as ⚙️ FastAPI Backend
-    participant LLM as 🧠 Qwen3-8B (Ollama)
+```
+REST SEQUENCE — Device Interaction (T1 → T2 → T1)
 
-    User->>UI: Clicks device in 3D room
-    UI->>Store: selectDevice(id)
-    Store->>UI: Highlight device, show info panel
-    User->>UI: Clicks "Inject Fault"
-    UI->>Store: toggleFault(id, type)
-    Store->>API: POST /api/devices/:id/fault { type }
-    API->>Backend: Forward request
-    Backend->>LLM: Analyze fault context
-    LLM-->>Backend: Severity + recommendations
-    Backend-->>API: 200 OK { status, faultId }
-    API-->>Store: Update device state
-    Store-->>UI: Re-render (device shows fault state)
+ Operator        Devices UI      Zustand Store    Fetch API (REST)   FastAPI Backend   Qwen3-8B LLM
+    │                │                │                  │                  │               │
+    │──click dev────▶│                │                  │                  │               │
+    │                │──selectDevice─▶│                  │                  │               │
+    │                │◀───highlight───│                  │                  │               │
+    │                │  show panel    │                  │                  │               │
+    │                │                │                  │                  │               │
+    │──Inject Fault─▶│                │                  │                  │               │
+    │                │──toggleFault──▶│                  │                  │               │
+    │                │                │──POST /fault────▶│                  │               │
+    │                │                │  {type}          │──────forward────▶│               │
+    │                │                │                  │                  │──analyze─────▶│
+    │                │                │                  │                  │◀─severity+rec─│
+    │                │                │                  │◀──200 OK────────│               │
+    │                │                │◀─update state    │  {status,faultId}│               │
+    │                │◀──re-render────│                  │                  │               │
+    │                │  (red pulse)   │                  │                  │               │
+    │                │                │                  │                  │               │
+    │──Lockdown──────▶│                │                  │                  │               │
+    │                │──toggleLockdown│                  │                  │               │
+    │                │──(id)─────────▶│                  │                  │               │
+    │                │                │──POST /lockdown─▶│                  │               │
+    │                │                │                  │─────toggle──────▶│               │
+    │                │                │                  │◀──200 OK────────│               │
+    │                │                │◀─update lock     │  {locked:true}   │               │
+    │                │◀──show lock────│                  │                  │               │
+    │                │  icon + glow   │                  │                  │               │
+    │                │                │                  │                  │               │
 
-    User->>UI: Clicks "Lockdown"
-    UI->>Store: toggleLockdown(id)
-    Store->>API: POST /api/devices/:id/lockdown
-    API->>Backend: Toggle isolation
-    Backend-->>API: 200 OK { locked: true }
-    API-->>Store: Update lockdown state
-    Store-->>UI: Device shows locked indicator
+ NOTES:
+   • REST is stateless — each request opens a fresh HTTP connection
+   • Zustand store is the single source of truth for UI state
+   • R3F re-renders from store changes (no direct REST→R3F coupling)
+   • LLM analysis is synchronous within the request lifecycle
 ```
 
 ## Data Flow — WebSocket Path (Backend → Dashboard UI)
 
-```mermaid
-sequenceDiagram
-    participant Backend as ⚙️ FastAPI Backend
-    participant WS as 🌐 WebSocket Server
-    participant LLM as 🧠 Qwen3-8B (Ollama)
-    participant Client as 📡 Dashboard UI (WS Client)
-    participant Store as 📦 Zustand Store
-    participant Scene as 🏗️ R3F Scene
-    participant Charts as 📊 ECharts Panels
-    participant Alerts as ⚠️ Alert Feed
+```
+WEBSOCKET SEQUENCE — Telemetry, Alerts & Copilot (T2 → T3)
 
-    Note over Backend,WS: Connection established
-    Backend->>WS: Every 5s: push telemetry snapshot
-    WS-->>Client: { deviceId, cpu, power, temp, status }
-    Client->>Store: updateTelemetry(data)
-    Store->>Scene: Update 3D device colors (health → color)
-    Store->>Charts: Update gauge/bar/line data
+ ──── TELEMETRY PUSH (every 5s) ────────────────────────────────────────
 
-    Note over Backend,Alerts: Alert event fires
-    Backend->>LLM: Classify alert severity
-    LLM-->>Backend: CRITICAL / WARNING / INFO
-    Backend->>WS: Push alert
-    WS-->>Client: { id, deviceId, severity, message, timestamp }
-    Client->>Store: addAlert(alert)
-    Store->>Alerts: Flash + append new alert
-    Store->>Scene: Flash device outline red/amber
+ FastAPI         WS Server        Dashboard UI      Zustand Store      R3F Scene       ECharts
+   │                │                  │                  │               │              │
+   │──push 5s snap─▶│                  │                  │               │              │
+   │                │──{devId,cpu,pwr}─▶                  │               │              │
+   │                │──{temp,status}───▶                  │               │              │
+   │                │                  │──updateTelemetry▶│               │              │
+   │                │                  │                  │──color───▶    │              │
+   │                │                  │                  │  health       │              │
+   │                │                  │                  │──update─────▶│              │
+   │                │                  │                  │  chart data   │              │
+   │                │                  │                  │               │              │
 
-    Note over Backend,Client: Copilot interaction
-    Client->>WS: { text: "Why is satellite 3 overheating?" }
-    WS->>Backend: Forward question
-    Backend->>LLM: Query with device context
-    LLM-->>Backend: Stream tokens
-    loop For each token
-        Backend->>WS: { token: "The" }
-        WS-->>Client: stream token
-        Client->>Store: appendCopilotToken(token)
-        Store->>Client: Update copilot display
-    end
-    Backend->>WS: { token: DONE, sources: [...] }
-    WS-->>Client: Final response with sources
+ ──── ALERT EVENT ──────────────────────────────────────────────────────
+
+ FastAPI         WS Server        LLM             Dashboard UI      Zustand Store      R3F Scene   Alert Feed
+   │                │               │                  │                  │               │            │
+   │──alert fires──▶│               │                  │                  │               │            │
+   │                │──classify────▶│                  │                  │               │            │
+   │                │◀─CRITICAL/───│                  │                  │               │            │
+   │                │  WARN/INFO   │                  │                  │               │            │
+   │                │──push alert─▶│                  │                  │               │            │
+   │                │  {id,devId,  │                  │                  │               │            │
+   │                │   sev,msg,ts}│                  │                  │               │            │
+   │                │               │                  │──addAlert──────▶│               │            │
+   │                │               │                  │                  │──flash───────▶│            │
+   │                │               │                  │                  │  red outline  │            │
+   │                │               │                  │                  │──append──────▶│            │
+   │                │               │                  │                  │  new entry    │            │
+
+ ──── COPILOT Q&A (streaming) ──────────────────────────────────────────
+
+ Copilot Panel     WS Client        FastAPI          LLM              Zustand Store
+      │                │               │               │                   │
+      │──send query───▶│               │               │                   │
+      │  "Why is sat 3 │──forward────▶│               │                   │
+      │   overheating?" │               │──query──────▶│                   │
+      │                │               │  w/ context   │                   │
+      │                │               │◀─stream token─│                   │
+      │                │               │  "The"        │                   │
+      │                │◀─token─"The"──│               │                   │
+      │◀──display──────│               │               │                   │
+      │  "The"         │               │               │                   │
+      │                │               │◀─stream token─│                   │
+      │                │               │  "satellite"  │                   │
+      │                │◀─token─"sat"─│               │                   │
+      │◀──append───────│               │               │                   │
+      │                │               │  ...stream continues...           │
+      │                │               │               │                   │
+      │                │               │◀─DONE +───────│                   │
+      │                │               │  sources[]    │                   │
+      │◀──final────────│               │               │                   │
+      │  response+src  │               │               │                   │
+
+ NOTES:
+   • WS connections persist for the lifetime of Dashboard UI session
+   • Auto-reconnect with exponential backoff: 1s, 2s, 4s, 8s, 16s (max 30s)
+   • Heartbeat ping/pong every 30s to keep connection alive
+   • Copilot streaming uses Server-Sent Events pattern over WebSocket
 ```
 
 ## User Interaction Flow — Devices UI
