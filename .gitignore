@@ -68,7 +68,9 @@ telemetry/prometheus/data/
 sim/*.yml.bak
 sim/clab-*/
 
-# ─── Dashboard ─────────────────────────────────────────────────────
+# ─── Frontends (Dual 3D Apps) ──────────────────────────────────────
+devices-ui/dist/
+devices-ui/.env
 dashboard/dist/
 dashboard/.env
 

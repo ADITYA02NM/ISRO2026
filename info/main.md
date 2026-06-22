@@ -1,600 +1,168 @@
-# 📐 Main Project — Deep Dive
+# 🏗️ System Architecture — Deep Dive
 
-> **Air-Gapped Predictive Copilot for Secure MPLS Operations**
->
-> Everything about the core system — design decisions, component interactions, and operational workflows.
-
----
-
-## 1. System Design Overview
-
-### 1.1 Architecture Philosophy
-
-The system follows a **layered, loosely-coupled architecture** within an air-gapped boundary:
+## 3-Terminal Topology
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AIR-GAPPED BOUNDARY                          │
-│                                                                 │
-│  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────┐  │
-│  │Network  │──▶│Telemetry │──▶│Predictive│──▶│  LLM Copilot │  │
-│  │Simulator│   │Pipeline  │   │Engine    │   │  (Offline)   │  │
-│  └─────────┘   └──────────┘   └──────────┘   └──────┬───────┘  │
-│                                                      │          │
-│  ┌──────────┐                        ┌──────────────┴───────┐  │
-│  │  Floci   │◀──────────────────────▶│  NOC Dashboard       │  │
-│  │(AWS Emu) │                        │  (3D · Real-time)    │  │
-│  └──────────┘                        └──────────────────────┘  │
-│                                                                 │
-│  ALL COMPONENTS: 0 outbound network dependencies               │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 1.2 Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| **Containerlab over EVE-NG/GNS3** | Containerlab is declarative (YAML), Git-friendly, lightweight, and deployable in CI — critical for reproducible simulation |
-| **FRRouting over commercial routers** | Open-source, BGP/OSPF feature-complete, Docker-native, no licensing issues |
-| **Floci over AWS** | Zero cloud dependency, air-gap compliant, free, local AWS API emulation — replaces S3, DynamoDB, Lambda, SQS, KMS |
-| **Qwen3-8B over larger models** | Fits entirely on RTX 4060 8 GB VRAM (Q4_K_M, 6.0 GB); 21 tok/s full GPU; Qwen3-4B-Thinking backup at 33 tok/s — no CPU offload needed |
-| **ChromaDB over Pinecone/Weaviate** | Fully local, zero telemetry, MIT license, simple Python API |
-| **LSTM + Prophet + GNN ensemble** | Captures temporal (LSTM), seasonal (Prophet), and topological (GNN) failure patterns — no single model covers all |
-| **Kafka for stream buffer** | Decouples collection from processing; enables replay for model training |
-| **Prometheus over InfluxDB** | Standard in network monitoring; integrates with Grafana natively; alert manager built-in |
-| **anime.js over Framer Motion** | Lighter bundle, declarative timeline-based API, specialized for micro-interactions on data dashboards |
-| **React Three Fiber over raw Three.js** | React-friendly, declarative scene graph, easier state integration |
-
----
-
-## 2. Network Simulation (sim/)
-
-### 2.1 Topology Design
-
-```
-                    ┌──────────────────────┐
-                    │   Datacenter (DC)     │
-                    │  P1 ─── P2 ─── P3    │
-                    │  │       │       │    │
-                    └──┼───────┼───────┼────┘
-                       │       │       │
-        ┌──────────────┼───────┼───────┼──────────────┐
-        │         PE-1 ─── PE-2 ─── PE-3              │
-        │              │  (MPLS Core)  │               │
-        │              │               │               │
-        │         CE-A │           CE-B│               │
-        │         ┌────┘             └────┐           │
-        │    ┌────┴────┐            ┌────┴────┐      │
-        │    │Branch A1│            │Branch B1│      │
-        │    │Branch A2│            │Branch B2│      │
-        │    │Branch A3│            │Branch B3│      │
-        │    └─────────┘            └─────────┘      │
-        └─────────────────────────────────────────────┘
-```
-
-### 2.2 Node Roles
-
-| Role | Count | Software | Function |
-|------|-------|----------|----------|
-| **P (Provider)** | 3 | FRR | MPLS LSR, LDP, core forwarding |
-| **PE (Provider Edge)** | 3 | FRR + StrongSwan | MPLS LER, BGP/OSPF, VPN termination, IPSec |
-| **CE (Customer Edge)** | 6 | FRR + StrongSwan | Site routing, SD-WAN overlay, IPSec tunnel endpoints |
-| **SD-WAN Controller** | 1 | Custom Python | Policy management, tunnel orchestration |
-
-### 2.3 Protocol Configuration
-
-| Protocol | Role | Details |
-|----------|------|---------|
-| **OSPF** | IGP within sites | Area 0 backbone, per-site areas |
-| **BGP** | Inter-site & MPLS VPN | iBGP full mesh between PEs, eBGP for CE |
-| **MPLS LDP** | Label distribution | Dynamic label assignment |
-| **IPSec** | Overlay encryption | StrongSwan IKEv2, AES-256-GCM |
-| **VRF** | VPN segmentation | RED (production), BLUE (development), GREEN (guest) |
-| **QoS** | Traffic shaping | LLQ on hub links, policing at edge |
-
-### 2.4 Traffic Profiles
-
-| Profile | Bandwidth | Protocol | Pattern |
-|---------|-----------|----------|---------|
-| Business-critical VoIP | 10 Mbps | RTP/UDP | Constant bitrate, bursty |
-| Interactive video | 50 Mbps | RTP/UDP | Variable, meeting-driven |
-| Enterprise apps | 100 Mbps | HTTPS/TCP | Office hours pattern |
-| Data replication | 200 Mbps | TCP | Nightly batch |
-| Web browsing | 50 Mbps | HTTPS/TCP | Random, heavy-tailed |
-| Background (scans, updates) | 20 Mbps | TCP/UDP | Periodic |
-
-### 2.5 Fault Injection Scenarios
-
-| Scenario | Mechanism | Duration | Severity Levels |
-|----------|-----------|----------|-----------------|
-| **Congestion buildup** | Traffic ramping (TRex) | 10-30 min ramp | 3 (60%, 80%, 95%) |
-| **BGP route flap** | Prefix withdraw/advertise cycling | 5-15 min | 2 (slow/fast) |
-| **Link failure** | Interface shutdown (Containerlab) | 2-10 min | 2 (partial/full) |
-| **Latency injection** | Netem delay on links | 5-20 min | 3 (+50ms, +100ms, +300ms) |
-| **Packet loss** | Netem loss on links | 5-15 min | 3 (0.5%, 1%, 5%) |
-| **Jitter injection** | Netem jitter on links | 5-15 min | 3 (±10ms, ±25ms, ±50ms) |
-| **Controller misconfig** | Policy push with errors | 1-5 min | 2 (incomplete/wrong) |
-| **Composite (multi-fault)** | Sequential fault chain | 15-45 min | Custom |
-
----
-
-## 3. Telemetry Pipeline (telemetry/)
-
-### 3.1 Data Flow
-
-```
-┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-│ Devices  │──▶│Telegraf  │──▶│  Kafka   │──▶│  Stream  │──▶│ Storage  │
-│ (SNMP/   │   │(SNMP/    │   │ Topics:  │   │ Processor│   │ Layer    │
-│  gNMI/   │   │ gNMI/    │   │ metrics  │   │(Kafka    │   │(Prom/ES/ │
-│  syslog) │   │ syslog)  │   │ events   │   │ Streams) │   │ Loki)    │
-└──────────┘   └──────────┘   │ flows    │   └──────────┘   └──────────┘
-                              └──────────┘
-```
-
-### 3.2 Telegraf Inputs
-
-```toml
-# SNMP polling from all routers
-[[inputs.snmp]]
-  agents = ["udp://172.20.0.10:161", "udp://172.20.0.11:161"]
-  version = 2
-  community = "public"
-
-  [[inputs.snmp.field]]
-    name = "ifInOctets"
-    oid = "1.3.6.1.2.1.2.2.1.10"
-
-  [[inputs.snmp.field]]
-    name = "ifOutOctets"
-    oid = "1.3.6.1.2.1.2.2.1.16"
-
-  [[inputs.snmp.field]]
-    name = "ifErrors"
-    oid = "1.3.6.1.2.1.2.2.1.14"
-
-# gNMI streaming from SD-WAN controller
-[[inputs.gnmi]]
-  addresses = ["172.20.0.100:57400"]
-  username = "admin"
-  password = "${GNMI_PASSWORD}"
-
-  [[inputs.gnmi.subscription]]
-    path = "/interfaces/interface/state/counters"
-    mode = "sample"
-    sample_interval = "5s"
-
-# Syslog events
-[[inputs.syslog]]
-  server = "tcp://0.0.0.0:6514"
-  best_effort = true
-```
-
-### 3.3 Prometheus Alerting Rules
-
-```yaml
-groups:
-  - name: network_anomalies
-    rules:
-      # LSTM prediction - high congestion probability
-      - alert: PredictedCongestion
-        expr: lstm_congestion_probability > 0.7
-        for: 2m
-        annotations:
-          summary: "LSTM predicts congestion on {{ $labels.interface }}"
-          lead_time: "{{ $value | humanizeDuration }}"
-
-      # Prophet forecast deviation
-      - alert: TrafficAnomaly
-        expr: abs(traffic_actual - prophet_forecast) / prophet_forecast > 0.3
-        for: 5m
-        annotations:
-          summary: "Traffic deviates >30% from Prophet forecast"
-
-      # Graph-based anomaly score
-      - alert: TopologyAnomaly
-        expr: gnn_anomaly_score > 0.8
-        for: 1m
-        annotations:
-          summary: "GNN detected topology anomaly on {{ $labels.site }}"
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       3-TERMINAL SYSTEM TOPOLOGY                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  TERMINAL 1                  TERMINAL 2                  TERMINAL 3    │
+│  Devices UI                  Backend                     Dashboard UI  │
+│  ┌─────────────────┐       ┌────────────────────┐      ┌─────────────┐ │
+│  │ React + Vite    │       │ FastAPI + Uvicorn  │      │ React+Vite  │ │
+│  │ R3F + drei      │       │                    │      │ R3F + drei  │ │
+│  │ Three.js        │       │ Qwen3-8B (Ollama)  │      │ Three.js    │ │
+│  │ Anime.js v4     │       │ Qwen3-4B (fallback)│      │ Anime.js v4 │ │
+│  │ Port 5173       │       │ Port 8000          │      │ ECharts     │ │
+│  └────────┬────────┘       └──────────┬─────────┘      │ Port 5174   │ │
+│           │                           │                └──────┬──────┘ │
+│           │     ┌─────────────────┐   │                       │       │
+│           │     │ floci.io infra  │   │                       │       │
+│           │     │ (local AWS emu) │   │                       │       │
+│           │     └─────────────────┘   │                       │       │
+│           │                           │                       │       │
+│           └──────────REST─────────────┴───────WebSocket───────┘       │
+│                      ▲                             ▲                  │
+│                      │                             │                  │
+│              HTTP POST/GET                  WS push telemetry         │
+│              commands/queries               alerts, status            │
+│              immediate response             LLM stream (copilot)      │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Predictive Engine (ml/)
+## Terminal 1 — Devices UI (port 5173)
 
-### 4.1 Model Architecture
+**Role**: Interactive 3D ground control for device monitoring and fault management.
 
+- **Framework**: React 18+ with Vite (fast HMR, optimized builds)
+- **3D Engine**: React Three Fiber (`@react-three/fiber`) + drei (`@react-three/drei`) + Three.js
+- **Animation Overlay**: Anime.js v4.4.1 for non-3D UI transitions (hover panels, alert highlights)
+- **State Management**: Zustand (lightweight, works well with R3F)
+- **HTTP Client**: Fetch API (lightweight, no axios needed for simple REST)
+
+### Key Components
+- **3D NOC Room** — full R3F scene with ground plane, ambient lighting, device nodes
+- **Device Nodes** — geometric meshes (BoxGeometry/SphereGeometry) positioned in 3D space
+- **Hover Info Panel** — anime.js-animated HTML overlay triggered by raycasting hover
+- **Fault Injection Panel** — buttons per device type to simulate failures
+- **Lockdown Controls** — single-click device isolation with visual lock state
+
+### Data Flow (REST only)
 ```
-                  ┌─────────────────────────────────────────┐
-                  │         Raw Telemetry Stream            │
-                  └──────────┬──────────────────────────────┘
-                             │
-                    ┌────────┴────────┐
-                    │ Feature Pipeline │
-                    │  · Rolling stats │
-                    │  · FFT features  │
-                    │  · Graph embeds  │
-                    └────────┬────────┘
-                             │
-         ┌───────────────────┼───────────────────────┐
-         ▼                   ▼                       ▼
-   ┌──────────┐       ┌──────────┐           ┌──────────────┐
-   │   LSTM   │       │  Prophet │           │   GNN (PyG)  │
-   │  Forecaster│     │Forecaster│           │Topology-Aware│
-   │ congestion│      │ baseline │           │Anomaly Detect│
-   │ latency   │      │ seasonal │           │   Node-level │
-   │ utilization│     │ patterns │           │ Edge-level   │
-   └─────┬─────┘      └────┬─────┘           └──────┬───────┘
-         │                 │                        │
-         └─────────────────┼────────────────────────┘
-                           ▼
-                  ┌──────────────────┐
-                  │  XGBoost Fusion  │
-                  │  Ensemble Layer  │
-                  │  · Calibrated    │
-                  │  · Meta-features │
-                  └────────┬─────────┘
-                           ▼
-                  ┌──────────────────┐
-                  │  Final Prediction│
-                  │  · Type          │
-                  │  · Probability   │
-                  │  · Time-to-impact│
-                  └──────────────────┘
-```
-
-### 4.2 Training Configuration
-
-| Model | Input Features | Sequence Length | Training Time (GPU) | Inference Time |
-|-------|---------------|-----------------|---------------------|----------------|
-| **LSTM** | 32 features (ifOctets, ifErrors, latency, jitter, BGP events...) | 128 steps (10.6 min @ 5s) | ~45 min / 100 epochs | ~5ms / batch |
-| **Prophet** | Single metric time-series | Full history | ~10 min / metric | ~2ms |
-| **GNN** | Node features (16-dim) + adjacency matrix | Snapshot | ~60 min / 100 epochs | ~8ms |
-| **Isolation Forest** | 64-dim feature vector | N/A (stateless) | ~5 min | ~1ms |
-| **XGBoost Ensemble** | 8 meta-features (model outputs) | N/A | ~15 min | <1ms |
-
-### 4.3 Evaluation Metrics
-
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| **Precision** | > 0.85 | TP / (TP + FP) |
-| **Recall** | > 0.80 | TP / (TP + FN) |
-| **F1 Score** | > 0.82 | 2 × P × R / (P + R) |
-| **Mean Lead Time** | > 5 min | Avg time from prediction to threshold breach |
-| **False Alarm Rate** | < 0.15 | FP / total predictions |
-| **TTI Error** | < 20% | |predicted - actual| / actual × 100 |
-| **ROC-AUC** | > 0.90 | Area under ROC curve |
-
----
-
-## 5. Offline LLM Copilot (copilot/)
-
-### 5.1 Copilot Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Copilot API (FastAPI)                    │
-│                                                                 │
-│  POST /api/v1/chat                                              │
-│  { query: "What is likely to fail next?" }                      │
-│                                                                 │
-│  ┌───────────┐    ┌──────────────┐    ┌─────────────────────┐  │
-│  │ Context   │───▶│ RAG Pipeline │───▶│ LLM Inference       │  │
-│  │ Builder   │    │ · ChromaDB   │    │ (Qwen3-8B ·       │  │
-│  │           │    │ · Similarity │    │  llama.cpp)         │  │
-│  └───────────┘    │ · Retrieved  │    └──────────┬──────────┘  │
-│                   │   runbooks   │               │             │
-│                   └──────────────┘               ▼             │
-│                                        ┌──────────────────┐    │
-│                                        │ Response         │    │
-│                                        │ Formatter        │    │
-│                                        │ · JSON struct    │    │
-│                                        │ · Actions        │    │
-│                                        └──────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 5.2 Prompt Template
-
-```system
-You are NOC Copilot — an AI assistant for network operations operating
-inside an air-gapped environment. You have access to:
-
-1. Live telemetry data from the SD-WAN/MPLS network
-2. Predictive model outputs (LSTM, Prophet, GNN)
-3. Historical incident data from the runbook database
-4. Network topology metadata
-
-Always respond in this JSON structure:
-{
-  "prediction": "Brief description of predicted issue",
-  "confidence": 0.0-1.0,
-  "time_to_impact": "Estimated time before SLA breach",
-  "root_cause_hypothesis": "What signals indicate this issue",
-  "affected_scope": { "sites": [...], "services": [...] },
-  "recommended_actions": [
-    { "action": "...", "priority": "high|medium|low", "playbook_ref": "..." }
-  ]
-}
-
-If you cannot make a prediction with confidence > 0.3, state that clearly.
-Do NOT reference any external data sources, cloud services, or internet resources.
-Ground all responses in the provided context only.
-```
-
-### 5.3 RAG Collection Schema
-
-```
-Collection: network_incidents
-┌─────────────┬──────────────┬──────────────┬────────────────────┐
-│ Field       │ Type         │ Embed        │ Description         │
-├─────────────┼──────────────┼──────────────┼────────────────────┤
-│ incident_id │ string       │ No           │ Unique identifier   │
-│ title       │ string       │ Yes (embed)  │ Incident title      │
-│ description │ string       │ Yes (embed)  │ Full description    │
-│ symptoms    │ string[]     │ Yes          │ Observed symptoms   │
-│ root_cause  │ string       │ Yes (embed)  │ Determined cause    │
-│ resolution  │ string       │ No           │ Resolution steps    │
-│ severity    │ string       │ No           │ CRITICAL/HIGH/MED   │
-│ site        │ string       │ No           │ Site identifier     │
-│ devices     │ string[]     │ No           │ Affected devices    │
-│ timestamp   │ datetime     │ No           │ When it occurred    │
-│ duration    │ string       │ No           │ Resolution time     │
-│ tags        │ string[]     │ Yes          │ Categorization tags │
-└─────────────┴──────────────┴──────────────┴────────────────────┘
-```
-
-### 5.4 Quantization Configuration
-
-```yaml
-# ─── Primary Model ───
-model: Qwen/Qwen3-8B
-quantization: GGUF Q4_K_M
-inference_engine: Ollama / llama.cpp (CUDA)
-
-# Hardware: RTX 4060 Laptop 8 GB VRAM / Ryzen 9 8945HS / 15 GB RAM
-# Qwen3-8B Q4_K_M: fits entirely on GPU at 6.0 GB VRAM (~21 tok/s)
-# Qwen3-4B-Thinking Q5_K_M: backup at 3.9 GB VRAM (~33 tok/s)
-
-# CPU Mode (llama.cpp GGUF — for CPU-only fallback)
-parameters:
-  context_length: 4096
-  batch_size: 512
-  threads: 8
-  gpu_layers: 0  # CPU only
-
-# GPU Mode (Ollama with CUDA — default config)
-parameters:
-  context_length: 4096
-  batch_size: 2048
-  gpu_layers: 35  # All layers on GPU (8B model fits fully)
-  tensor_split: [0, 0]  # Single GPU (RTX 4060)
-
-# Performance targets (measured on dev machine):
-# RTX 4060 8GB:   ~21 tokens/sec (Qwen3-8B Q4_K_M)
-# RTX 4060 8GB:   ~33 tokens/sec (Qwen3-4B-Thinking Q5_K_M)
-# CPU only (8C):  ~3-5 tokens/sec (slow, inference only)
+User Interaction → R3F Canvas Event → Zustand Store → Fetch API → Backend REST
+                                                                       ↓
+UI Update ← Zustand ← Fetch Response ← Backend processes command
 ```
 
 ---
 
-## 6. Floci Integration (floci/)
+## Terminal 2 — Backend (port 8000)
 
-### 6.1 Why Floci Instead of AWS
+**Role**: Central data processing, command handling, and intelligence layer.
 
-The challenge requires an **air-gapped** solution. Floci provides:
+- **Framework**: FastAPI with Uvicorn (async-first, WebSocket built-in)
+- **LLM**: Ollama-hosted Qwen3-8B (primary) + Qwen3-4B-Thinking (fallback)
+- **Infrastructure**: floci.io (local AWS emulation — S3-compatible storage, SQS, Lambda simulation)
+- **Data**: In-memory device state + optional SQLite for persistence
 
-| AWS Service | Floci Local Equivalent | Purpose in Project |
-|-------------|----------------------|-------------------|
-| **S3** | `http://localhost:4566` | Model artifact storage, runbook storage |
-| **DynamoDB** | `http://localhost:4566` | Incident records, alert state, prediction registry |
-| **Lambda** | Docker-backed | Automated remediation actions, playbook execution |
-| **SQS** | `http://localhost:4566` | Alert event bus, inter-component messaging |
-| **KMS** | `http://localhost:4566` | Local encryption keys for secrets |
-| **Secrets Manager** | `http://localhost:4566` | Manage local credentials |
+### Dual Interface
+| Interface | Protocol | Purpose | Consumed By |
+|-----------|----------|---------|-------------|
+| REST API | HTTP | CRUD for devices, run commands, query status, config | Devices UI |
+| WebSocket | WS | Push telemetry, alerts, LLM copilot stream | Dashboard UI |
 
-### 6.2 Floci Compose Configuration
+### LLM Integration
+- **Fault Analysis**: Qwen3-8B receives device telemetry + fault context, returns root cause + severity
+- **Runbook Generation**: Qwen3-4B-Thinking generates step-by-step runbook for "send help" triggers
+- **Anomaly Detection**: Qwen3-8B identifies anomalous patterns in telemetry streams
+- **Copilot Q&A**: Qwen3-8B answers natural-language queries about device state and history
 
-```yaml
-# docker/floci.yml
-services:
-  floci:
-    image: floci/floci:latest-compat
-    ports:
-      - "4566:4566"
-    environment:
-      - FLOCI_STORAGE_MODE=persistent
-      - FLOCI_DEFAULT_REGION=us-east-1
-      - FLOCI_DEFAULT_ACCOUNT_ID=000000000000
-      - FLOCI_HOSTNAME=floci
-      - FLOCI_SERVICES_LAMBDA_DOCKER_NETWORK=airgap-net
-    volumes:
-      - floci-data:/var/lib/floci
-      - ./floci/init-scripts:/etc/localstack/init/ready.d
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - airgap-net
-    restart: unless-stopped
-
-volumes:
-  floci-data:
-
-networks:
-  airgap-net:
-    external: true
+### API Endpoints (Planned)
 ```
+REST:
+  GET    /api/devices              → list all devices
+  GET    /api/devices/:id          → device detail + telemetry
+  POST   /api/devices/:id/command  → execute command (recover, lockdown, etc.)
+  POST   /api/devices/:id/fault    → inject fault
+  POST   /api/devices/:id/lockdown → toggle isolation
+  GET    /api/devices/:id/history  → telemetry history
 
-### 6.3 Init Scripts
-
-```bash
-#!/bin/bash
-# init-scripts/01-setup-infra.sh
-# Runs when Floci is ready (auto-executed)
-
-# Create S3 buckets for model artifacts
-aws --endpoint-url=http://localhost:4566 s3 mb s3://ml-models
-aws --endpoint-url=http://localhost:4566 s3 mb s3://runbooks
-aws --endpoint-url=http://localhost:4566 s3 mb s3://telemetry-archive
-
-# Create DynamoDB tables
-aws --endpoint-url=http://localhost:4566 dynamodb create-table \
-  --table-name incidents \
-  --attribute-definitions AttributeName=id,AttributeType=S \
-  --key-schema AttributeName=id,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST
-
-aws --endpoint-url=http://localhost:4566 dynamodb create-table \
-  --table-name predictions \
-  --attribute-definitions AttributeName=id,AttributeType=S \
-  --key-schema AttributeName=id,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST
-
-# Create SQS queues
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name alert-events
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name telemetry-stream
-
-# Generate local KMS key
-aws --endpoint-url=http://localhost:4566 kms create-key \
-  --description "Air-gapped master key"
+WebSocket:
+  /ws/telemetry                   → push device telemetry (5s interval)
+  /ws/alerts                      → push severity-graded alerts
+  /ws/copilot                     → LLM streaming Q&A
+  /ws/status                      → system health + connection status
 ```
 
 ---
 
-## 7. Air-Gap Verification
+## Terminal 3 — Dashboard UI (port 5174)
 
-### 7.1 Verification Script
+**Role**: Real-time 3D monitoring, analytics, alert triage, and action dispatch.
 
-```bash
-#!/bin/bash
-# scripts/airgap-verify.sh
+- **Framework**: React 18+ with Vite
+- **3D Engine**: React Three Fiber + drei + Three.js (same base as Devices UI)
+- **Analytics**: ECharts (Apache ECharts via `echarts-for-react`) for CPU/power/trend charts
+- **Animation Overlay**: Anime.js v4.4.1 for panel transitions, alert animations
+- **WebSocket Client**: Native WebSocket (auto-reconnect, heartbeat)
+- **State Management**: Zustand
 
-FAILURES=0
+### Key Components
+- **Same 3D Room Scene** — shared geometric layout, different context overlay
+- **Analytic Panels** — ECharts panels (CPU gauge, power bar, trend lines) rendered as HTML overlays
+- **Alert Feed** — real-time WebSocket push, severity: CRITICAL/WARNING/INFO, with anime.js flash
+- **Copilot Q&A** — text input → WebSocket GET → LLM stream → rendered markdown-style answer
+- **Lockdown / Send Help** — buttons that dispatch commands via REST (lockdown isolation) or via WebSocket/LLM (send help → auto-runbook)
 
-echo "🔒 Air-Gap Integrity Verification"
-echo "=================================="
-
-# 1. Check no outbound DNS queries from runtime containers
-for container in $(docker ps --format '{{.Names}}'); do
-  if docker exec $container nslookup google.com 2>/dev/null | grep -q "Address:"; then
-    echo "❌ FAIL: $container can resolve external DNS"
-    FAILURES=$((FAILURES + 1))
-  else
-    echo "✅ PASS: $container has no external DNS"
-  fi
-done
-
-# 2. Check no external IP connectivity
-for container in $(docker ps --format '{{.Names}}'); do
-  if docker exec $container ping -c 1 -W 2 8.8.8.8 2>/dev/null | grep -q "1 received"; then
-    echo "❌ FAIL: $container can reach external IP"
-    FAILURES=$((FAILURES + 1))
-  else
-    echo "✅ PASS: $container cannot reach external IP"
-  fi
-done
-
-# 3. Verify all LLM inference is local
-if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-  echo "✅ PASS: Ollama running locally"
-else
-  echo "❌ FAIL: Ollama not accessible"
-  FAILURES=$((FAILURES + 1))
-fi
-
-# 4. Verify Floci (no auth token needed)
-if curl -s http://localhost:4566/_localstack/health > /dev/null 2>&1; then
-  echo "✅ PASS: Floci emulator running locally"
-else
-  echo "❌ FAIL: Floci not accessible"
-  FAILURES=$((FAILURES + 1))
-fi
-
-# 5. Verify no cloud SDK endpoints configured
-if grep -r "amazonaws.com\|googleapis.com\|azure.com" \
-  --include="*.py" --include="*.ts" --include="*.yaml" \
-  --include="*.toml" --include="*.conf" sim/ telemetry/ ml/ copilot/ dashboard/ 2>/dev/null; then
-  echo "❌ FAIL: Found cloud endpoint references in source code"
-  FAILURES=$((FAILURES + 1))
-else
-  echo "✅ PASS: No cloud endpoints referenced in source"
-fi
-
-echo ""
-if [ $FAILURES -eq 0 ]; then
-  echo "✅ ALL PASS — Air-gap integrity confirmed"
-  exit 0
-else
-  echo "❌ $FAILURES FAILURES — Air-gap integrity compromised"
-  exit 1
-fi
+### Data Flow (WebSocket primary)
+```
+Backend → WebSocket Push → Zustand Store → R3F Scene update (telemetry)
+                                        → Alert Feed (alert list)
+                                        → Copilot Panel (LLM stream)
+                                        → ECharts (chart data update)
 ```
 
 ---
 
-## 8. Operational Workflows
+## Data Layer Summary
 
-### 8.1 Incident Response Flow
-
-```
-1. Telemetry deviation detected
-   ↓
-2. Predictive models generate alert with confidence + TTI
-   ↓
-3. Alert published to SQS alert-events queue
-   ↓
-4. Copilot API triggered: fetches context + runbooks
-   ↓
-5. LLM generates structured response with actions
-   ↓
-6. Dashboard displays alert + copilot recommendation
-   ↓
-7. Operator reviews, approves/overrides action
-   ↓
-8. Lambda executes automated remediation (if approved)
-   ↓
-9. Post-incident summary written to DynamoDB
-   ↓
-10. Runbook updated (if new resolution pattern found)
-```
-
-### 8.2 Operator Query Examples
-
-```bash
-# What's going to fail?
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Authorization: Bearer $(cat SR.md | grep COPILOT_API_KEY | cut -d= -f2)" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What is likely to fail in the next 15 minutes?"}'
-
-# Investigate specific prediction
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Authorization: Bearer $(cat SR.md | grep COPILOT_API_KEY | cut -d= -f2)" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Why is site B at risk? Show me the contributing signals."}'
-
-# Get remediation steps
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Authorization: Bearer $(cat SR.md | grep COPILOT_API_KEY | cut -d= -f2)" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What should I do about the predicted congestion on PE-1?"}'
-```
+| Aspect | REST (Terminal 1 ↔ 2) | WebSocket (Terminal 2 → 3) |
+|--------|----------------------|---------------------------|
+| Protocol | HTTP/1.1 | WS (RFC 6455) |
+| Direction | Bidirectional request/response | Server → Client push |
+| Frequency | On-demand (user actions) | Continuous (5s telemetry) |
+| Payload | JSON | JSON (serialized) |
+| State | Stateless | Stateful connection |
+| Use Case | Commands, queries, config | Telemetry, alerts, LLM stream |
 
 ---
 
-## 9. Performance Targets
+## Security Considerations
 
-| Metric | Target | Measured By |
-|--------|--------|-------------|
-| Prediction lead time | > 5 minutes before threshold breach | Fault scenario logs |
-| Copilot response time | < 5 seconds (end-to-end) | API timestamps |
-| Dashboard render time | < 2 seconds initial load | Lighthouse |
-| Telemetry end-to-end latency | < 10 seconds | Timestamp deltas |
-| Floci API response | < 100ms (in-memory) | Prometheus latency |
-| System uptime | > 99.9% (air-gap isolated) | Prometheus |
-| Air-gap compliance | 100% zero outbound calls | `airgap-verify.sh` |
+- **No authentication** in v1 — internal network assumption (floci.io sandbox)
+- **Lockdown API** requires explicit confirmation (double-tap)
+- **Send Help** triggers read-only runbook generation (no auto-execution without confirmation)
+- **SR.md** contains GitHub PAT — .gitignored, never committed
+- All LLM inference is local — no data leaves the machine
 
 ---
 
-> *Next: See [build.md](./build.md) for step-by-step build instructions.*
-> *See [resources.md](./resources.md) for the complete resource index.*
+## Why 3 Terminals?
+
+The decision to split into **two separate frontends** (not one combined app) was deliberate:
+
+| Factor | Single Combined App | Two Separate Apps |
+|--------|-------------------|-------------------|
+| Complexity | One large bundle, complex routing | Two focused codebases |
+| Development | Both devs block each other | Parallel development |
+| Portability | Monolithic deploy | Independent deploy |
+| Focus | Control + Analytics mixed | Clear separation of concerns |
+| WebSocket | Shared connection | Dedicated per dashboard |
+| Build Time | Longer single build | Shorter independent builds |
+| Learning | One set of dependencies | Same stack x2 (reusable skills) |
+
+Both apps share the **same 3D rendering stack** (R3F + drei + Three.js) but have **different overlay layers and interaction models**. This allows each to be optimized independently without cascading changes.

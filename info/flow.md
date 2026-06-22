@@ -1,353 +1,257 @@
-# 🌊 Software & Technology Flowcharts
+# 🔄 Data & Interaction Flows
 
-> **Visual architecture of the Air-Gapped Predictive Copilot**
->
-> All diagrams use Mermaid.js — render them on [mermaid.live](https://mermaid.live) or in any Mermaid-compatible viewer (GitHub, Obsidian, VS Code).
-
----
-
-## 1. System Architecture Overview
+## 3-Terminal Architecture Flow
 
 ```mermaid
 flowchart TB
-    subgraph AIRGAP["🚧 Air-Gapped Boundary"]
+    subgraph T1["Terminal 1 — Devices UI (5173)"]
         direction TB
-
-        subgraph SIM["🌐 Network Simulation"]
-            CLAB["Containerlab Topology"]
-            FRR["FRRouting BGP/OSPF"]
-            IPSEC["IPSec Tunnels"]
-            TRAFFIC["TRex Traffic Gen"]
-            FAULT["Fault Injection Engine"]
-        end
-
-        subgraph TELE["📊 Telemetry Pipeline"]
-            TEF["Telegraf<br/>(SNMP · gNMI)"]
-            PROM["Prometheus"]
-            KAFKA["Kafka Streams"]
-            ES["Elasticsearch"]
-            LOKI["Loki Logs"]
-        end
-
-        subgraph ML["🧠 Predictive Engine"]
-            LSTM["LSTM Forecaster"]
-            PROPHET["Prophet Model"]
-            GNN["Graph Neural Net"]
-            ISO["Isolation Forest"]
-            XGB["XGBoost Ensemble"]
-        end
-
-        subgraph LLM["🤖 Offline LLM Copilot"]
-            MISTRAL["Quantized Qwen3-8B"]
-            CHROMA["ChromaDB Vector Store"]
-            RUNBOOKS["Internal Runbooks"]
-            LANGCHAIN["LangChain RAG Pipeline"]
-        end
-
-        subgraph UI["🖥️ NOC Dashboard"]
-            R3F["React Three Fiber 3D"]
-            ANIME["anime.js Micro-interactions"]
-            CHARTS["Apache ECharts"]
-            GRAFANA["Grafana Panels"]
-        end
-
-        subgraph INFRA["☁️ Local Cloud (Floci)"]
-            S3["S3 Buckets"]
-            DDB["DynamoDB"]
-            LAMBDA["Lambda Functions"]
-            SQS["SQS Queues"]
-            KMS["KMS Keys"]
-        end
-
-        SIM --> TELE
-        TELE --> ML
-        TELE --> LLM
-        ML --> LLM
-        ML --> UI
-        LLM --> UI
-        INFRA --> SIM
-        INFRA --> TELE
-        INFRA --> ML
+        T1_R3F["R3F 3D Scene<br/>Interactive Devices<br/>Hover Info Panels"]
+        T1_UI["HTML Overlays<br/>Fault Injection<br/>Lockdown Button"]
+        T1_REST["REST Client<br/>(Fetch API)"]
     end
 
-    OPERATOR["👨‍💻 NOC Operator"] --> UI
-    OPERATOR --> LLM
+    subgraph T2["Terminal 2 — Backend (8000)"]
+        direction TB
+        T2_REST["FastAPI REST Layer"]
+        T2_WS["FastAPI WebSocket Layer"]
+        T2_LLM["LLM Orchestrator<br/>Qwen3-8B + 4B"]
+        T2_DATA["Device State<br/>Telemetry Data"]
+    end
+
+    subgraph T3["Terminal 3 — Dashboard UI (5174)"]
+        direction TB
+        T3_R3F["R3F 3D Scene<br/>Analytics Overlays"]
+        T3_WS["WebSocket Client<br/>Auto-Reconnect"]
+        T3_UI["Alert Feed<br/>Copilot Panel<br/>Lockdown + Send Help"]
+        T3_ECHARTS["ECharts<br/>CPU / Power / Trends"]
+    end
+
+    T1_R3F -->|"click/hover<br/>events"| T1_UI
+    T1_UI -->|"HTTP POST"| T1_REST
+    T1_REST -->|"api/devices/:id/command<br/>api/devices/:id/fault<br/>api/devices/:id/lockdown"| T2_REST
+    T2_REST -->|"process & respond"| T2_DATA
+    T2_DATA -->|"JSON response"| T1_REST
+    T1_REST -->|"state update"| T1_R3F
+
+    T2_DATA -->|"telemetry push<br/>every 5s"| T2_WS
+    T2_LLM -->|"fault analysis<br/>runbook gen"| T2_DATA
+    T2_WS -->|"ws://localhost:8000/ws/telemetry"| T3_WS
+    T2_WS -->|"ws://localhost:8000/ws/alerts"| T3_UI
+    T2_WS -->|"ws://localhost:8000/ws/copilot"| T3_UI
+    T3_WS -->|"state update"| T3_R3F
+    T3_WS -->|"chart data"| T3_ECHARTS
+    T3_UI -->|"lockdown request<br/>(HTTP REST)"| T2_REST
+    T3_UI -->|"send help<br/>(runs LLM runbook)"| T2_LLM
 ```
 
----
-
-## 2. Telemetry Pipeline Flow
-
-```mermaid
-flowchart LR
-    subgraph DEVICES["Simulated Network Devices"]
-        CE["CE Routers<br/>(Branch)"]
-        PE["PE Routers<br/>(Hub)"]
-        P["P Routers<br/>(Core)"]
-        SDWAN["SD-WAN Controllers"]
-    end
-
-    subgraph COLLECT["Collection Layer"]
-        SNMP["SNMP Polling<br/>Telegraf"]
-        GNMI["gNMI Streaming<br/>Telegraf"]
-        SYSLOG["Syslog Receiver<br/>Rsyslog"]
-        NETFLOW["NetFlow/IPFIX<br/>Flow Exporter"]
-    end
-
-    subgraph BUFFER["Stream Buffer"]
-        KAFKA["Apache Kafka<br/>Topics:<br/>metrics · events · flows · logs"]
-    end
-
-    subgraph PROCESS["Processing Layer"]
-        STREAM_PRO["Stream Processor<br/>(Kafka Streams)"]
-        ALERT["Alert Manager<br/>(Prometheus)"]
-        ANOMALY["Real-time Anomaly<br/>(Isolation Forest)"]
-    end
-
-    subgraph STORE["Storage Layer"]
-        PROM_DB[("Prometheus TSDB")]
-        ES_DB[("Elasticsearch")]
-        LOKI_DB[("Loki")]
-    end
-
-    DEVICES --> SNMP & GNMI & SYSLOG & NETFLOW
-    SNMP & GNMI & SYSLOG & NETFLOW --> KAFKA
-    KAFKA --> STREAM_PRO & ALERT & ANOMALY
-    STREAM_PRO --> PROM_DB & ES_DB & LOKI_DB
-    ANOMALY --> PROM_DB
-```
-
----
-
-## 3. ML Training Pipeline
-
-```mermaid
-flowchart TB
-    subgraph DATA["Data Preparation"]
-        RAW["Raw Telemetry<br/>(Prometheus/ES)"]
-        LABELS["Fault Labels<br/>(Ground Truth)"]
-        FEAT["Feature Engineering<br/>- Rolling windows<br/>- Statistical features<br/>- Fourier transforms<br/>- Graph embeddings"]
-        SPLIT["Train/Val/Test Split<br/>70/15/15"]
-    end
-
-    subgraph TRAIN["Model Training"]
-        LSTM_T["LSTM<br/>· seq_len=128<br/>· 3 layers<br/>· dropout=0.2"]
-        PROPHET_T["Prophet<br/>· yearly/weekly<br/>· changepoints<br/>· seasonality"]
-        GNN_T["Graph Neural Net<br/>· GCN layers<br/>· topology aware<br/>· node features"]
-        ISO_T["Isolation Forest<br/>· n_estimators=200<br/>· max_samples=256"]
-    end
-
-    subgraph EVAL["Evaluation"]
-        METRICS["Metrics<br/>· Precision/Recall<br/>· F1 Score<br/>· Lead Time<br/>· FAR"]
-        ENSEMBLE["Ensemble<br/>(XGBoost Meta-Learner)"]
-        THRESHOLD["Threshold Tuning<br/>· Youden's J<br/>· Cost-sensitive"]
-    end
-
-    subgraph DEPLOY["Deployment"]
-        ONNX["ONNX Export"]
-        TRITON["Local Inference<br/>Server"]
-        CACHE["Model Cache<br/>(Floci S3)"]
-    end
-
-    RAW --> FEAT
-    LABELS --> FEAT
-    FEAT --> SPLIT
-    SPLIT --> LSTM_T & PROPHET_T & GNN_T & ISO_T
-    LSTM_T & PROPHET_T & GNN_T & ISO_T --> METRICS
-    METRICS --> ENSEMBLE
-    ENSEMBLE --> THRESHOLD
-    THRESHOLD --> ONNX
-    ONNX --> TRITON & CACHE
-```
-
----
-
-## 4. LLM Copilot Inference Flow
+## Data Flow — REST Path (Devices UI ↔ Backend)
 
 ```mermaid
 sequenceDiagram
-    participant Operator as 🧑‍💻 NOC Operator
-    participant API as Copilot API (FastAPI)
-    participant RAG as RAG Pipeline
-    participant VDB as ChromaDB Vector Store
-    participant LLM as Quantized Qwen3-8B
-    participant CTX as Context Builder
-    participant TELE as Live Telemetry
+    participant User as 👤 Operator
+    participant UI as 🖥️ Devices UI (R3F)
+    participant Store as 📦 Zustand Store
+    participant API as 🌐 Fetch API (REST)
+    participant Backend as ⚙️ FastAPI Backend
+    participant LLM as 🧠 Qwen3-8B (Ollama)
 
-    Operator->>API: "What is likely to fail next?"
-    API->>CTX: Fetch current alert state
-    CTX->>TELE: Get latest metrics
-    TELE-->>CTX: Return top anomalies
-    CTX->>VDB: Query similar past incidents
-    VDB-->>CTX: Top-k runbook matches
-    CTX->>RAG: Build enriched prompt
+    User->>UI: Clicks device in 3D room
+    UI->>Store: selectDevice(id)
+    Store->>UI: Highlight device, show info panel
+    User->>UI: Clicks "Inject Fault"
+    UI->>Store: toggleFault(id, type)
+    Store->>API: POST /api/devices/:id/fault { type }
+    API->>Backend: Forward request
+    Backend->>LLM: Analyze fault context
+    LLM-->>Backend: Severity + recommendations
+    Backend-->>API: 200 OK { status, faultId }
+    API-->>Store: Update device state
+    Store-->>UI: Re-render (device shows fault state)
 
-    Note over RAG: Prompt Structure:<br/>System: NOC copilot persona<br/>Context: Topology + telemetry + runbooks<br/>Query: Operator question
-
-    RAG->>LLM: Forward with context
-    LLM-->>RAG: Generated response
-
-    Note over RAG: Response Structure:<br/>🔮 Prediction: Link saturation on PE-1<br/>📊 Confidence: 87%<br/>🎯 Time-to-impact: ~12 minutes<br/>🔍 Root cause: BKUP path BGP flapping<br/>📋 Affected: Site-B, Site-C<br/>🛠️ Action: Shutdown flapping peer
-
-    RAG-->>API: Structured response
-    API-->>Operator: Display in NOC Dashboard
+    User->>UI: Clicks "Lockdown"
+    UI->>Store: toggleLockdown(id)
+    Store->>API: POST /api/devices/:id/lockdown
+    API->>Backend: Toggle isolation
+    Backend-->>API: 200 OK { locked: true }
+    API-->>Store: Update lockdown state
+    Store-->>UI: Device shows locked indicator
 ```
 
----
-
-## 5. Fault Injection & Validation Flow
+## Data Flow — WebSocket Path (Backend → Dashboard UI)
 
 ```mermaid
-flowchart LR
-    subgraph SCENARIOS["Fault Scenarios"]
-        CONG["Progressive Congestion<br/>Hub-Spoke Link"]
-        FLAP["BGP Route Flap<br/>with Cascade"]
-        LINK["MPLS Underlay Failure<br/>Tunnel Degradation"]
-        CONF["Controller Misconfig<br/>Policy Drift"]
-    end
+sequenceDiagram
+    participant Backend as ⚙️ FastAPI Backend
+    participant WS as 🌐 WebSocket Server
+    participant LLM as 🧠 Qwen3-8B (Ollama)
+    participant Client as 📡 Dashboard UI (WS Client)
+    participant Store as 📦 Zustand Store
+    participant Scene as 🏗️ R3F Scene
+    participant Charts as 📊 ECharts Panels
+    participant Alerts as ⚠️ Alert Feed
 
-    subgraph INJECT["Injection Phase"]
-        SCRIPT["fault-inject.sh"]
-        PARAMS["Parameter Config<br/>· Severity<br/>· Duration<br/>· Ramp-up"]
-        EXEC["Execute via<br/>Containerlab/SSH"]
-    end
+    Note over Backend,WS: Connection established
+    Backend->>WS: Every 5s: push telemetry snapshot
+    WS-->>Client: { deviceId, cpu, power, temp, status }
+    Client->>Store: updateTelemetry(data)
+    Store->>Scene: Update 3D device colors (health → color)
+    Store->>Charts: Update gauge/bar/line data
 
-    subgraph DETECT["Detection Phase"]
-        LEAD["⏱ Lead Time<br/>Prediction before impact"]
-        ACC["🎯 Accuracy<br/>Correct prediction?"]
-        CONF_SC["📊 Confidence<br/>Score calibration"]
-        EXPL["💬 Explanation<br/>Quality assessment"]
-    end
+    Note over Backend,Alerts: Alert event fires
+    Backend->>LLM: Classify alert severity
+    LLM-->>Backend: CRITICAL / WARNING / INFO
+    Backend->>WS: Push alert
+    WS-->>Client: { id, deviceId, severity, message, timestamp }
+    Client->>Store: addAlert(alert)
+    Store->>Alerts: Flash + append new alert
+    Store->>Scene: Flash device outline red/amber
 
-    subgraph RECORD["Recording"]
-        GROUND["Ground Truth Label"]
-        METRICS_LOG["Metrics Log"]
-        COPILOT["Copilot Response"]
-        HUMAN["Human Evaluation"]
+    Note over Backend,Client: Copilot interaction
+    Client->>WS: { text: "Why is satellite 3 overheating?" }
+    WS->>Backend: Forward question
+    Backend->>LLM: Query with device context
+    LLM-->>Backend: Stream tokens
+    loop For each token
+        Backend->>WS: { token: "The" }
+        WS-->>Client: stream token
+        Client->>Store: appendCopilotToken(token)
+        Store->>Client: Update copilot display
     end
-
-    SCENARIOS --> SCRIPT
-    SCRIPT --> PARAMS
-    PARAMS --> EXEC
-    EXEC --> DETECT
-    DETECT --> LEAD & ACC & CONF_SC & EXPL
-    LEAD & ACC & CONF_SC & EXPL --> RECORD
+    Backend->>WS: { token: DONE, sources: [...] }
+    WS-->>Client: Final response with sources
 ```
 
----
+## User Interaction Flow — Devices UI
 
-## 6. Floci Local AWS Integration
-
-```mermaid
-flowchart TB
-    subgraph FLOCI["Floci (Local AWS Emulation)"]
-        direction TB
-        GW["API Gateway<br/>:4566"]
-        S3_F["S3<br/>Model Artifacts<br/>Runbooks"]
-        DDB_F["DynamoDB<br/>Incident Records<br/>Alert State"]
-        SQS_F["SQS<br/>Alert Queue<br/>Event Bus"]
-        LAMBDA_F["Lambda<br/>Automated Remediation<br/>Playbook Actions"]
-        KMS_F["KMS<br/>Local Keys<br/>Air-gapped Crypto"]
-    end
-
-    subgraph APP["Application Components"]
-        ML_STORE["ML Model Storage"]
-        INCIDENT_DB["Incident Database"]
-        ALERT_BUS["Alert Event Bus"]
-        AUTO_FIX["Auto-Remediation"]
-        CRYPTO["Crypto Operations"]
-    end
-
-    APP --> GW
-    GW --> S3_F & DDB_F & SQS_F & LAMBDA_F & KMS_F
-    S3_F --> ML_STORE
-    DDB_F --> INCIDENT_DB
-    SQS_F --> ALERT_BUS
-    LAMBDA_F --> AUTO_FIX
-    KMS_F --> CRYPTO
-
-    subgraph CONFIG["Floci Configuration"]
-        COMPOSE["compose.yml<br/>docker compose up"]
-        ENV["Env Variables:<br/>FLOCI_STORAGE_MODE=persistent<br/>FLOCI_DEFAULT_REGION=us-east-1"]
-        INIT["Init Scripts:<br/>S3 bucket creation<br/>DynamoDB tables<br/>SQS queues"]
-    end
-
-    CONFIG --> FLOCI
+```
+┌─────────────────────────────────────────────┐
+│           DEVICES UI INTERACTION MAP          │
+├─────────────────────────────────────────────┤
+│                                              │
+│  ┌──────────────┐                            │
+│  │ 3D NOC Room  │  Camera orbit (OrbitControls)│
+│  │  Loaded      │  Devices rendered in 3D     │
+│  └──────┬───────┘                            │
+│         │                                     │
+│         ▼                                     │
+│  ┌──────────────┐   mouse hover               │
+│  │ Device Node   │─────────────────────────▶  │
+│  │ [Hover]      │   Show info panel           │
+│  └──────┬───────┘   (Anime.js enter)          │
+│         │                                     │
+│         ▼                                     │
+│  ┌──────────────┐                             │
+│  │ Device Panel │  Displays:                  │
+│  │ (Anime.js)   │  - Name, type, status       │
+│  │              │  - Telemetry summary        │
+│  │              │  - Fault buttons            │
+│  │              │  - Lockdown button          │
+│  └──────┬───────┘                             │
+│         │                                     │
+│         ├──────────▶ "Inject Fault"           │
+│         │              POST /api/devices/:id/fault│
+│         │              → Device shows red pulse │
+│         │                                     │
+│         └──────────▶ "Lockdown"               │
+│                      POST /api/devices/:id/lockdown│
+│                      → Device shows lock icon  │
+│                      → Network lines disabled   │
+└─────────────────────────────────────────────┘
 ```
 
----
+## User Interaction Flow — Dashboard UI
 
-## 7. Deployment & Orchestration Flow
-
-```mermaid
-flowchart TB
-    START(["🚀 make up"]) --> DOCKER["Docker Compose<br/>Infrastructure Layer"]
-
-    DOCKER --> FLOCI_S["Floci<br/>Local AWS Emulation"]
-    DOCKER --> TELE_S["Telemetry Stack<br/>Telegraf · Prometheus · Kafka · ES"]
-    DOCKER --> LLM_S["LLM Service<br/>Ollama · ChromaDB"]
-
-    FLOCI_S --> INIT["Init Scripts<br/>S3 · DynamoDB · SQS · Lambda"]
-    INIT --> TOPO["make deploy-topology"]
-
-    TELE_S --> TOPO
-    TOPO --> SIM_DEPLOY["Containerlab Deploy<br/>Multi-site Topology"]
-
-    SIM_DEPLOY --> TEL_START["make start-telemetry"]
-    TEL_START --> PIPELINE["Telemetry Pipeline Active"]
-
-    PIPELINE --> TRAIN["make train-models"]
-    TRAIN --> MODELS["Models Trained & Validated"]
-
-    MODELS --> COPILOT["make start-copilot"]
-    COPILOT --> ACTIVE["✅ System Operational"]
-
-    ACTIVE --> DASH["make dashboard<br/>→ http://localhost:3000"]
-    ACTIVE --> INJECT["make inject-fault"]
-    ACTIVE --> QUERY["make query-copilot"]
+```
+┌─────────────────────────────────────────────┐
+│         DASHBOARD UI INTERACTION MAP          │
+├─────────────────────────────────────────────┤
+│                                              │
+│  ┌──────────────┐   WebSocket auto-updates   │
+│  │ 3D Room      │◀─────────────────────────  │
+│  │ + Overlays   │   Telemetry data flows     │
+│  └──────┬───────┘   Device colors update     │
+│         │                                     │
+│         ▼                                     │
+│  ┌──────────────────────────────┐             │
+│  │ Alert Feed (auto-scroll)    │             │
+│  │  • 🔴 CRITICAL: Sat 3 temp │──click──▶  │
+│  │  • 🟡 WARNING: Antenna 1   │  Select     │
+│  │  • 🔵 INFO: Rover diagnostic│  device     │
+│  └──────────────────────────────┘             │
+│         │                                     │
+│         ▼                                     │
+│  ┌──────────────────────────────┐             │
+│  │ Copilot Q&A Panel           │             │
+│  │ [Operator]: "What's wrong   │             │
+│  │             with Sat 3?"    │──send──▶   │
+│  │ [Copilot]: "Satellite 3 is │             │
+│  │  overheating. Recommend    │◀──stream──  │
+│  │  reducing power draw..."   │  LLM tokens  │
+│  └──────────────────────────────┘             │
+│         │                                     │
+│         ├──────────▶ "Lockdown Device"        │
+│         │              POST /api/devices/:id/lockdown│
+│         │                                     │
+│         └──────────▶ "Send Help"              │
+│                        WebSocket → LLM        │
+│                        Generate runbook       │
+└─────────────────────────────────────────────┘
 ```
 
----
+## Dual Data Path Summary
 
-## 8. Data Flow Between Components
-
-```mermaid
-flowchart LR
-    subgraph RAW["Raw Data Sources"]
-        SNMP["SNMP Counters<br/>(ifInOctets, ifOutOctets,<br/>ifErrors)"]
-        BGP["BGP Events<br/>(Adjacency, Prefixes,<br/>Flaps)"]
-        LATENCY["Latency/Jitter<br/>(ICMP, TWAMP)"]
-        FLOW["NetFlow Records<br/>(5-tuple, bytes,<br/>durations)"]
-        TUNNEL["Tunnel Stats<br/>(IPSec, GRE,<br/>rekeys)"]
-    end
-
-    subgraph FEATURES["Feature Vectors"]
-        WINDOW["Time Windows<br/>(5m, 15m, 1h)"]
-        STATS["Statistics<br/>(mean, std, p95,<br/>skew, kurtosis)"]
-        FREQ["Frequency Domain<br/>(FFT components)"]
-        GRAPH["Graph Features<br/>(centrality, degrees,<br/>betweenness)"]
-    end
-
-    subgraph MODELS["Model Inputs"]
-        LSTM_IN["LSTM<br/>(Sequence: 128 steps)"]
-        PROPHET_IN["Prophet<br/>(Timestamps + values)"]
-        GNN_IN["GNN<br/>(Adjacency + node features)"]
-    end
-
-    subgraph OUTPUT["Model Outputs"]
-        PRED["Predictions<br/>· Congestion probability<br/>· Latency drift<br/>· Route stability<br/>· Tunnel health"]
-        CONF_SC["Confidence Scores"]
-        TTI["Time-to-Impact"]
-    end
-
-    SNMP & BGP & LATENCY & FLOW & TUNNEL --> WINDOW
-    WINDOW --> STATS & FREQ & GRAPH
-    STATS & FREQ --> LSTM_IN & PROPHET_IN
-    GRAPH --> GNN_IN
-    LSTM_IN & PROPHET_IN & GNN_IN --> PRED
-    PRED --> CONF_SC & TTI
+```
+                    ┌───────────┐
+                    │  Operator │
+                    └─────┬─────┘
+                          │
+            ┌─────────────┴─────────────┐
+            │                           │
+            ▼                           ▼
+    ┌───────────────┐         ┌──────────────────┐
+    │ Devices UI    │         │ Dashboard UI     │
+    │ REST Client   │         │ WebSocket Client │
+    └───────┬───────┘         └────────┬─────────┘
+            │                          │
+            │ HTTP POST/GET            │ WebSocket (ws://)
+            │                          │
+            ▼                          ▼
+    ┌─────────────────────────────────────────┐
+    │          FastAPI Backend :8000           │
+    │                                          │
+    │  REST Layer          WebSocket Layer     │
+    │  ┌──────────┐       ┌──────────────┐    │
+    │  │ CRUD     │       │ /ws/telemetry│    │
+    │  │ Commands │       │ /ws/alerts   │    │
+    │  │ Config   │       │ /ws/copilot  │    │
+    │  └──────────┘       │ /ws/status   │    │
+    │                     └──────────────┘    │
+    └─────────────────────────────────────────┘
 ```
 
----
+## Connection Lifecycle
 
-> *All flowcharts rendered with Mermaid.js v11+. Edit and preview at [mermaid.live](https://mermaid.live).*
+### REST (Devices UI)
+```
+Request ──▶ Backend processes ──▶ Response ──▶ Connection closed
+```
+Stateless. Each interaction opens a fresh HTTP connection.
+
+### WebSocket (Dashboard UI)
+```
+1. Client connects:  new WebSocket('ws://localhost:8000/ws/telemetry')
+2. Server accepts:   WebSocket connection established
+3. Server pushes:    { telemetry data } every 5s
+4. Client receives:  Store update → R3F re-render
+5. On disconnect:    Auto-reconnect with exponential backoff (1s, 2s, 4s, 8s...)
+6. Heartbeat:        Ping/pong every 30s to keep alive
+```
+
+## Port Allocation
+
+| Port | Service | Protocol | Assigned To |
+|------|---------|----------|-------------|
+| 5173 | Devices UI | HTTP (Vite dev server) | Terminal 1 |
+| 8000 | FastAPI Backend | HTTP + WebSocket | Terminal 2 |
+| 5174 | Dashboard UI | HTTP (Vite dev server) | Terminal 3 |
