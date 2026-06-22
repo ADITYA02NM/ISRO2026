@@ -1,168 +1,186 @@
-# 🏗️ System Architecture — Deep Dive
+# Main Architecture — PS13
 
-## 3-Terminal Topology
+## Air-Gapped Predictive Copilot for Secure MPLS Operations
+
+An AI-powered NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN network, streams real-time telemetry through a Prometheus/Kafka pipeline, predicts network failures using an ensemble of 7 ML models, and provides natural-language diagnostic assistance via an offline LLM with RAG over 50+ internal runbook documents — all running air-gapped on a single RTX 4060 laptop.
+
+---
+
+## Topology (Containerlab — 4 Sites)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                       3-TERMINAL SYSTEM TOPOLOGY                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  TERMINAL 1                  TERMINAL 2                  TERMINAL 3    │
-│  Devices UI                  Backend                     Dashboard UI  │
-│  ┌─────────────────┐       ┌────────────────────┐      ┌─────────────┐ │
-│  │ React + Vite    │       │ FastAPI + Uvicorn  │      │ React+Vite  │ │
-│  │ R3F + drei      │       │                    │      │ R3F + drei  │ │
-│  │ Three.js        │       │ Qwen3-8B (Ollama)  │      │ Three.js    │ │
-│  │ Anime.js v4     │       │ Qwen3-4B (fallback)│      │ Anime.js v4 │ │
-│  │ Port 5173       │       │ Port 8000          │      │ ECharts     │ │
-│  └────────┬────────┘       └──────────┬─────────┘      │ Port 5174   │ │
-│           │                           │                └──────┬──────┘ │
-│           │     ┌─────────────────┐   │                       │       │
-│           │     │ floci.io infra  │   │                       │       │
-│           │     │ (local AWS emu) │   │                       │       │
-│           │     └─────────────────┘   │                       │       │
-│           │                           │                       │       │
-│           └──────────REST─────────────┴───────WebSocket───────┘       │
-│                      ▲                             ▲                  │
-│                      │                             │                  │
-│              HTTP POST/GET                  WS push telemetry         │
-│              commands/queries               alerts, status            │
-│              immediate response             LLM stream (copilot)      │
-│                                                                       │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                       BGP/OSPF/MPLS Backbone                        │
+│                                                                     │
+│    ┌─────────┐         ┌─────────┐         ┌─────────┐             │
+│    │ P1 (P)  │◄───────►│ P2 (P)  │◄───────►│ P3 (P)  │             │
+│    │  Core   │  eBGP   │  Core   │  eBGP   │  Core   │             │
+│    └────┬────┘         └────┬────┘         └────┬────┘             │
+│          │                  │                  │                    │
+│    ┌─────┴─────┐    ┌──────┴──────┐    ┌──────┴──────┐             │
+│    │ PE1 (PE)  │    │ PE2 (PE)    │    │ PE3 (PE)    │             │
+│    │ Bangalore │    │ Mumbai      │    │ Chennai     │             │
+│    │ HQ        │    │ DC          │    │ DR          │             │
+│    └─────┬─────┘    └──────┬──────┘    └──────┬──────┘             │
+│          │                 │                   │                    │
+│    ┌─────┴─────┐    ┌──────┴──────┐    ┌──────┴──────┐             │
+│    │ CE1 (CE)  │    │ CE2 (CE)    │    │ CE3 (CE)    │             │
+│    │ Campus    │    │ DC Servers  │    │ DR Servers  │             │
+│    └───────────┘    └─────────────┘    └─────────────┘             │
+│                                                                     │
+│    ┌──────────────────────────────────────────────────────┐        │
+│    │           IPsec Tunnel (Bangalore ↔ Delhi)           │        │
+│    │    ┌─────────────────┐      ┌─────────────────┐      │        │
+│    │    │ IPsec GW Bengal │◄────►│ IPsec GW Delhi  │      │        │
+│    │    └─────────────────┘      └─────────────────┘      │        │
+│    └──────────────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Device Roles
+- **P Routers**: Core MPLS backbone, LDP + BGP-free core, high-speed label switching
+- **PE Routers**: MPLS edge, BGP/OSPF route exchange, LSP ingress/egress, VRF segmentation
+- **CE Routers**: Customer edge, single-homed or dual-homed to PE, standard IP routing
+- **IPsec Gateways**: Site-to-site encrypted overlay across untrusted transport
+
+### Fault Scenarios (7)
+1. **Link Failure**: Interface down on core link between P1-P2
+2. **BGP Flap**: PE2 BGP session to PE1 oscillates (hold timer / update delay)
+3. **Congestion**: Link utilization crosses 90% threshold (TRex burst)
+4. **Route Leak**: CE2 accidentally advertises DC prefixes to wrong VRF
+5. **Interface Errors**: CRC errors escalating on P3-PE3 link
+6. **Node Crash**: P2 container crash (simulated hard failure)
+7. **LSP Break**: MPLS label path breaks between PE1→PE3 (label withdrawal)
+
+---
+
+## Data Pipeline
+
+```
+┌────────────────┐    ┌────────────┐    ┌──────────────┐    ┌────────────┐
+│ Containerlab   │    │ Telegraf   │    │  Prometheus  │    │   Kafka    │
+│ FRR Nodes      │───►│ Agents     │───►│  TSDB +      │───►│  Stream    │
+│ (metrics 5s)   │    │ (per node) │    │  Alert Rules │    │  Broker    │
+└────────────────┘    └────────────┘    └──────────────┘    └─────┬──────┘
+                                                                   │
+                    ┌──────────────────────────────────────────────┘
+                    ▼
+          ┌─────────────────────┐     ┌────────────────────────┐
+          │   ML Engine         │     │   LLM Copilot          │
+          │   ┌─────────────┐   │     │   ┌─────────────────┐  │
+          │   │ LSTM        │   │     │   │ Ollama Qwen3-8B │  │
+          │   │ (time-series)│   │     │   └────────┬────────┘  │
+          │   ├─────────────┤   │     │            │            │
+          │   │ Prophet     │   │     │   ┌────────▼────────┐  │
+          │   │ (trend/sea) │   │     │   │ ChromaDB RAG    │  │
+          │   ├─────────────┤   │     │   │ (50+ runbooks)  │  │
+          │   │ GNN (graph) │   │     │   └─────────────────┘  │
+          │   ├─────────────┤   │     └────────────────────────┘
+          │   │ XGBoost     │   │
+          │   │ (classifier)│   │     ┌────────────────────────┐
+          │   ├─────────────┤   │     │   NOC Workflow         │
+          │   │ IsoForest   │   │     │   ┌─────────────────┐  │
+          │   │ (anomaly)   │   │     │   │ NetworkX Graph  │  │
+          │   ├─────────────┤   │     │   │ Alert Correlate │  │
+          │   │ Autoencoder │   │     │   ├─────────────────┤  │
+          │   │ (recon err) │   │     │   │ Playbook Suggest│  │
+          │   ├─────────────┤   │     │   ├─────────────────┤  │
+          │   │ TTI Regr.   │   │     │   │ Incident Summ.  │  │
+          │   │ (time-to-   │   │     │   └─────────────────┘  │
+          │   │  incident)  │   │     └────────────────────────┘
+          │   └─────────────┘   │
+          └─────────────────────┘
 ```
 
 ---
 
-## Terminal 1 — Devices UI (port 5173)
+## Terminal Breakdown
 
-**Role**: Interactive 3D ground control for device monitoring and fault management.
+### Terminal 1 (port 5173) — Network Topology UI
+- **Framework**: React 18 + Vite + Three.js + R3F + @react-three/drei
+- **State**: Zustand (simulation state, router selections, fault injection params)
+- **3D Scene**: 4-site MPLS network with router meshes, animated link lines, BGP peer indicators
+- **Interactions**: Click router → info panel (hostname, model, BGP peers, link states, MPLS labels)
+- **Fault Injection Panel**: Slide-toggle for each of 7 fault scenarios, reset button
+- **Animations**: Anime.js for traffic flow particles, alert flash effects, BGP session status transitions
+- **Data Flow**: REST GET /api/simulation/state for initial load, WS /ws/topology for live updates
 
-- **Framework**: React 18+ with Vite (fast HMR, optimized builds)
-- **3D Engine**: React Three Fiber (`@react-three/fiber`) + drei (`@react-three/drei`) + Three.js
-- **Animation Overlay**: Anime.js v4.4.1 for non-3D UI transitions (hover panels, alert highlights)
-- **State Management**: Zustand (lightweight, works well with R3F)
-- **HTTP Client**: Fetch API (lightweight, no axios needed for simple REST)
+### Terminal 2 (port 8000) — Backend
+- **Simulation Orchestrator**: Containerlab lifecycle (start/stop/reset), FRR config generator per router
+- **Telemetry Pipeline Bridge**: Consumes Telegraf → Prometheus metrics, forwards to Kafka topics
+- **ML Inference Engine**: 7 models loaded on-demand; batch inference on Prometheus data, event-driven inference on Kafka stream
+- **LLM Copilot**: Ollama API calls to Qwen3-8B with RAG context from ChromaDB; Qwen3-4B-Thinking for lightweight fallback
+- **Air-Gap Scanner**: Periodic DNS, HTTP, process, and data-flow checks; reports compliance score
+- **API Endpoints**:
+  - `GET /api/simulation/state` — Current topology + fault status
+  - `POST /api/simulation/fault` — Inject fault scenario
+  - `POST /api/simulation/reset` — Reset to healthy state
+  - `GET /api/telemetry/metrics` — Prometheus metrics snapshot
+  - `GET /api/ml/predictions` — Latest model predictions
+  - `POST /api/ml/query` — Ad-hoc ML inference on custom metrics
+  - `POST /api/copilot/query` — Ask LLM with structured output
+  - `GET /api/copilot/context` — Available RAG context sources
+  - `GET /api/workflow/alerts` — Correlated alerts
+  - `POST /api/workflow/playbook` — Suggest playbook for incident
+  - `GET /api/airgap/status` — Air-gap compliance check
+  - `WS /ws/topology` — Live topology state updates
+  - `WS /ws/ml` — Live ML prediction stream
+  - `WS /ws/alerts` — Live alert stream
 
-### Key Components
-- **3D NOC Room** — full R3F scene with ground plane, ambient lighting, device nodes
-- **Device Nodes** — geometric meshes (BoxGeometry/SphereGeometry) positioned in 3D space
-- **Hover Info Panel** — anime.js-animated HTML overlay triggered by raycasting hover
-- **Fault Injection Panel** — buttons per device type to simulate failures
-- **Lockdown Controls** — single-click device isolation with visual lock state
-
-### Data Flow (REST only)
-```
-User Interaction → R3F Canvas Event → Zustand Store → Fetch API → Backend REST
-                                                                       ↓
-UI Update ← Zustand ← Fetch Response ← Backend processes command
-```
-
----
-
-## Terminal 2 — Backend (port 8000)
-
-**Role**: Central data processing, command handling, and intelligence layer.
-
-- **Framework**: FastAPI with Uvicorn (async-first, WebSocket built-in)
-- **LLM**: Ollama-hosted Qwen3-8B (primary) + Qwen3-4B-Thinking (fallback)
-- **Infrastructure**: floci.io (local AWS emulation — S3-compatible storage, SQS, Lambda simulation)
-- **Data**: In-memory device state + optional SQLite for persistence
-
-### Dual Interface
-| Interface | Protocol | Purpose | Consumed By |
-|-----------|----------|---------|-------------|
-| REST API | HTTP | CRUD for devices, run commands, query status, config | Devices UI |
-| WebSocket | WS | Push telemetry, alerts, LLM copilot stream | Dashboard UI |
-
-### LLM Integration
-- **Fault Analysis**: Qwen3-8B receives device telemetry + fault context, returns root cause + severity
-- **Runbook Generation**: Qwen3-4B-Thinking generates step-by-step runbook for "send help" triggers
-- **Anomaly Detection**: Qwen3-8B identifies anomalous patterns in telemetry streams
-- **Copilot Q&A**: Qwen3-8B answers natural-language queries about device state and history
-
-### API Endpoints (Planned)
-```
-REST:
-  GET    /api/devices              → list all devices
-  GET    /api/devices/:id          → device detail + telemetry
-  POST   /api/devices/:id/command  → execute command (recover, lockdown, etc.)
-  POST   /api/devices/:id/fault    → inject fault
-  POST   /api/devices/:id/lockdown → toggle isolation
-  GET    /api/devices/:id/history  → telemetry history
-
-WebSocket:
-  /ws/telemetry                   → push device telemetry (5s interval)
-  /ws/alerts                      → push severity-graded alerts
-  /ws/copilot                     → LLM streaming Q&A
-  /ws/status                      → system health + connection status
-```
+### Terminal 3 (port 5174) — Analytics Dashboard
+- **Framework**: React 18 + Vite + anime.js + ECharts
+- **State**: Zustand (predictions, alerts, copilot responses, airgap status)
+- **Panels**:
+  1. **ML Prediction Panel**: TTI countdown, failure probability gauges, trend charts (ECharts)
+  2. **Alert Correlation Feed**: Topology-aware grouped alerts with blast radius overlay
+  3. **LLM Copilot Panel**: Chat interface with Q1/Q2/Q3 structured answer rendering
+  4. **Playbook Suggestion Panel**: Ranked playbooks for active incidents
+  5. **Incidents Timeline**: Severity progression, resolved vs active counters
+  6. **Air-Gap Compliance**: Green/amber/red status with per-check detail
+- **Data Flow**: WS push from backend for all live data; REST for historical queries
 
 ---
 
-## Terminal 3 — Dashboard UI (port 5174)
+## Key Design Decisions
 
-**Role**: Real-time 3D monitoring, analytics, alert triage, and action dispatch.
-
-- **Framework**: React 18+ with Vite
-- **3D Engine**: React Three Fiber + drei + Three.js (same base as Devices UI)
-- **Analytics**: ECharts (Apache ECharts via `echarts-for-react`) for CPU/power/trend charts
-- **Animation Overlay**: Anime.js v4.4.1 for panel transitions, alert animations
-- **WebSocket Client**: Native WebSocket (auto-reconnect, heartbeat)
-- **State Management**: Zustand
-
-### Key Components
-- **Same 3D Room Scene** — shared geometric layout, different context overlay
-- **Analytic Panels** — ECharts panels (CPU gauge, power bar, trend lines) rendered as HTML overlays
-- **Alert Feed** — real-time WebSocket push, severity: CRITICAL/WARNING/INFO, with anime.js flash
-- **Copilot Q&A** — text input → WebSocket GET → LLM stream → rendered markdown-style answer
-- **Lockdown / Send Help** — buttons that dispatch commands via REST (lockdown isolation) or via WebSocket/LLM (send help → auto-runbook)
-
-### Data Flow (WebSocket primary)
-```
-Backend → WebSocket Push → Zustand Store → R3F Scene update (telemetry)
-                                        → Alert Feed (alert list)
-                                        → Copilot Panel (LLM stream)
-                                        → ECharts (chart data update)
-```
+| Decision | Rationale |
+|----------|-----------|
+| Containerlab for simulation | Standard for container-based NOS simulation; FRR images available; no hardware needed |
+| Ensemble ML (7 models) | Each model captures different signal; combined predictions more robust than single model |
+| ChromaDB RAG over runbooks | Lightweight, local, no cloud dependency; supports semantic search over internal docs |
+| Qwen3-8B primary LLM | Runs on RTX 4060 (8GB VRAM); strong reasoning for network diagnostics |
+| Qwen3-4B-Thinking fallback | Uses fewer resources; good for rapid/lightweight queries |
+| NetworkX for alert correlation | Lightweight graph analysis; no external graph DB needed |
+| 3-terminal architecture | Separates concerns: visualization, computation, analytics; independent scaling |
+| No cloud dependency | True air-gap; all infra via Docker + floci.io local emulation |
+| FastAPI + WebSocket | Async-first; ideal for streaming telemetry and real-time ML predictions |
+| Zustand for state | Lightweight, no boilerplate; works for both frontends |
 
 ---
 
-## Data Layer Summary
+## Infrastructure
 
-| Aspect | REST (Terminal 1 ↔ 2) | WebSocket (Terminal 2 → 3) |
-|--------|----------------------|---------------------------|
-| Protocol | HTTP/1.1 | WS (RFC 6455) |
-| Direction | Bidirectional request/response | Server → Client push |
-| Frequency | On-demand (user actions) | Continuous (5s telemetry) |
-| Payload | JSON | JSON (serialized) |
-| State | Stateless | Stateful connection |
-| Use Case | Commands, queries, config | Telemetry, alerts, LLM stream |
-
----
-
-## Security Considerations
-
-- **No authentication** in v1 — internal network assumption (floci.io sandbox)
-- **Lockdown API** requires explicit confirmation (double-tap)
-- **Send Help** triggers read-only runbook generation (no auto-execution without confirmation)
-- **SR.md** contains GitHub PAT — .gitignored, never committed
-- All LLM inference is local — no data leaves the machine
+| Service | Role | Technology |
+|---------|------|-----------|
+| floci.io S3 | Runbook + model storage | Local S3-compatible |
+| floci.io DynamoDB | Incident history, alert state | Local DynamoDB-compatible |
+| floci.io Lambda | Alert processor (lightweight) | Local Lambda emulation |
+| Docker | Simulation containers, pipeline services | docker-compose |
+| Ollama | LLM runtime | Local GPU-accelerated |
+| ChromaDB | Vector store for RAG | Local persistent |
 
 ---
 
-## Why 3 Terminals?
+## Hardware Target
 
-The decision to split into **two separate frontends** (not one combined app) was deliberate:
+| Component | Spec |
+|-----------|------|
+| GPU | NVIDIA RTX 4060 (8GB VRAM) |
+| CPU | AMD Ryzen 9 8945HS (8 cores / 16 threads) |
+| RAM | 15 GB DDR5 |
+| Storage | Local NVMe SSD |
+| OS | Linux (Ubuntu 24.04) |
 
-| Factor | Single Combined App | Two Separate Apps |
-|--------|-------------------|-------------------|
-| Complexity | One large bundle, complex routing | Two focused codebases |
-| Development | Both devs block each other | Parallel development |
-| Portability | Monolithic deploy | Independent deploy |
-| Focus | Control + Analytics mixed | Clear separation of concerns |
-| WebSocket | Shared connection | Dedicated per dashboard |
-| Build Time | Longer single build | Shorter independent builds |
-| Learning | One set of dependencies | Same stack x2 (reusable skills) |
+---
 
-Both apps share the **same 3D rendering stack** (R3F + drei + Three.js) but have **different overlay layers and interaction models**. This allows each to be optimized independently without cascading changes.
+*Air-gapped by design. No cloud dependency. All data stays local.*

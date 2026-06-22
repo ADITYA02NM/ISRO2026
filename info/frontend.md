@@ -1,252 +1,179 @@
-# 🎨 Frontend Architecture — Dual 3D React Apps
+# Frontend Architecture — PS13
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    FRONTEND ARCHITECTURE                         │
-│                                                                  │
-│  TERMINAL 1                          TERMINAL 3                 │
-│  devices-ui/ :5173                   dashboard/ :5174           │
-│  ┌─────────────────────┐            ┌─────────────────────┐     │
-│  │ React + Vite        │            │ React + Vite        │     │
-│  │ + R3F + drei        │            │ + R3F + drei        │     │
-│  │ + Three.js          │            │ + Three.js          │     │
-│  │ + Anime.js v4       │            │ + Anime.js v4       │     │
-│  │                     │            │ + ECharts           │     │
-│  │ [3D NOC Room]       │            │ [3D Room +          │     │
-│  │  ├─ Ground          │            │  Analytics]         │     │
-│  │  ├─ Lighting        │            │  ├─ Ground          │     │
-│  │  ├─ Device Nodes    │            │  ├─ Lighting        │     │
-│  │  │  ├─ Satellite🔴 │            │  ├─ Device Nodes🔵 │     │
-│  │  │  ├─ Antenna 🟢  │            │  │  ├─ Satellite    │     │
-│  │  │  ├─ Rover  🟡   │            │  │  ├─ Antenna      │     │
-│  │  │  └─ Module 🟣  │            │  │  ├─ Rover        │     │
-│  │  └─ Camera Orbit   │            │  │  └─ Module       │     │
-│  │                     │            │  └─ Camera Orbit    │     │
-│  │ Overlays:           │            │                     │     │
-│  │  ├─ Hover Info Panel│            │ Overlays:           │     │
-│  │  ├─ Fault Inject    │            │  ├─ ECharts Analytics│     │
-│  │  └─ Lockdown Button │            │  ├─ Alert Feed      │     │
-│  │                     │            │  ├─ Copilot Q&A     │     │
-│  └─────────┬───────────┘            │  ├─ Lockdown        │     │
-│            │ REST                   │  └─ Send Help       │     │
-│            ▼                        └─────────┬───────────┘     │
-│  ┌──────────────────┐                        │ WS push         │
-│  │   FastAPI REST   │                        ▼                 │
-│  │   + WebSocket    │◄───────────────────────┘                 │
-│  └──────────────────┘                                          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Both frontends are strictly 3D.** No flat/2D UI fallback. The same base room scene is rendered in both, differentiated entirely by the overlay layers.
+Two independent React applications sharing a Zustand state pattern and custom animation layer.
 
 ---
 
-## Devices UI — Component Tree (Terminal 1)
+## Terminal 1: Network Topology UI (port 5173)
 
+3D NOC visualization of a multi-site MPLS/SD-WAN network using Three.js + R3F. Displays router meshes, link lines, BGP peer relationships, and fault injection controls.
+
+### Tech Stack
+- React 18 + Vite (fast HMR, no webpack config)
+- Three.js via R3F (@react-three/fiber)
+- @react-three/drei (OrbitControls, Html, Text, Line, Edges)
+- Zustand (store for simulation state, selections, fault params)
+- anime.js (timeline animations for link traffic, alerts, transitions)
+
+### Component Tree
 ```
-<App>
-├── <Canvas>                                // R3F Canvas
-│   ├── <ambientLight />                    // drei helpers
-│   ├── <directionalLight />
-│   ├── <OrbitControls />                   // drei — camera orbit
-│   ├── <Ground />                          // RoundedBox / Plane
-│   ├── <DeviceNode position=[x,0,z]>       // per device
-│   │   ├── <Satellite />                   // geometric mesh
-│   │   │   ├── box (body)
-│   │   │   └── cylinder (dish)
-│   │   ├── <Antenna />                     // geometric mesh
-│   │   ├── <Rover />                       // geometric mesh
-│   │   └── <Module />                      // geometric mesh
-│   ├── <DeviceInfoBubble />                 // HTML overlay on hover (raycast)
-│   └── <GridHelper />
-├── <UIOverlay>                              // HTML overlay (positioned absolute)
-│   ├── <HoverInfoPanel />                   // anime.js animated
-│   ├── <FaultInjectionPanel />              // buttons per device type
-│   ├── <LockdownButton>                     // toggle isolation
-│   └── <DeviceStatusBar>                    // bottom bar, all devices summary
-└── </App>
+App
+├── Canvas (R3F)
+│   ├── Scene
+│   │   ├── AmbientLight + DirectionalLight + PointLight
+│   │   ├── OrbitControls (zoom/pan/rotate)
+│   │   ├── Grid (floor reference)
+│   │   │
+│   │   ├── SiteGroup[4] (Bangalore, Mumbai, Chennai, Delhi)
+│   │   │   ├── RouterMesh[1..3 per site] (PE/P/CE/IPsec)
+│   │   │   │   ├── BoxGeometry body (color-coded by role)
+│   │   │   │   ├── PortIndicator (port count + status dots)
+│   │   │   │   └── HtmlLabel (hostname + IP + role)
+│   │   │   │
+│   │   │   ├── LinkLine[between routers]
+│   │   │   │   ├── BufferGeometry line
+│   │   │   │   ├── Color (green=up, yellow=degraded, red=down)
+│   │   │   │   └── TrafficParticles (anime.js + shader)
+│   │   │   │
+│   │   │   └── BgpPeerIndicator (colored sphere near router)
+│   │   │
+│   │   ├── IpsecTunnel (dashed arc between Bang-Delhi GWs)
+│   │   │
+│   │   ├── MplsLspPath (highlighted path from PE1 to PE3)
+│   │   │
+│   │   └── AlertIndicator[floating] (triangle + severity color)
+│   │
+│   └── HtmlOverlay
+│       └── RouterInfoPanel (click router → name, model, peers, status, links)
+│
+├── HUD (positioned over canvas)
+│   ├── SiteSelector (click site to focus camera)
+│   ├── StatusBar (network health: healthy/degraded/critical)
+│   ├── Legends (router colors, link states, peer status)
+│   └── Controls (reset view, auto-rotate toggle, grid toggle)
+│
+├── FaultInjectionPanel (slide-in from right)
+│   ├── FaultToggle[7] (link fail, BGP flap, congestion, ...)
+│   ├── InjectButton
+│   └── ResetButton
+│
+└── ConnectionManager (Zustand actions)
+    ├── REST poll: /api/simulation/state (5s interval)
+    ├── WS subscription: /ws/topology
+    └── Actions: injectFault, resetSimulation
 ```
 
-### State Management (Devices UI)
-```
-Zustand Store: useDeviceStore
-├── devices: Map<id, Device>
-├── selectedDevice: id | null
-├── hoveredDevice: id | null
-├── lockedDevices: Set<id>
-├── faultyDevices: Set<id>
-├── selectDevice(id)
-├── hoverDevice(id | null)
-├── toggleFault(id, type)
-├── toggleLockdown(id)
-└── updateDeviceTelemetry(id, data)    // from REST poll
-```
+### 3D Router Representation
+- **PE Router**: BoxGeometry (1.2 × 1.0 × 0.6) — blue
+- **P Router**: BoxGeometry (1.0 × 0.8 × 0.6) — gray
+- **CE Router**: BoxGeometry (0.8 × 0.6 × 0.4) — green
+- **IPsec GW**: BoxGeometry (1.0 × 0.8 × 0.6) — orange
+- **Link Lines**: TubeGeometry with color-coded material (green/amber/red)
+- **Traffic Particles**: PointsGeometry + PointsMaterial, animated along link path
 
-### REST Data Flow
-```
-[CANVAS EVENT] ──raycast──▶ [DeviceNode click/hover]
-                                 │
-                                 ▼
-                         [Zustand Store]
-                         selectDevice(id)
-                         hoverDevice(id)
-                                 │
-                                 ▼
-                         [Fetch API]
-                         POST /api/devices/:id/command
-                         POST /api/devices/:id/fault
-                         POST /api/devices/:id/lockdown
-                                 │
-                                 ▼
-                         [FastAPI Backend]
-                         ── process command ──▶ response
-                                 │
-                                 ▼
-                         [Zustand Store update]
-                         UI re-render (R3F + HTML overlays)
-```
+### Ref Structures
+Refs via Zustand store. R3F stores reference to each router mesh for highlight/click. Zustand central store holds:
+- `simulationState` (site statuses, link statuses, fault flags)
+- `selectedRouter` (currently clicked router for info panel)
+- `faultParams` (active fault injection config)
+- `topologyHistory` (last N topology snapshots)
+- `wsConnectionStatus` (connected/disconnected/reconnecting)
+
+3D Exceptions managed by R3F's useFrame loop:
+- Link traffic animation (update Points position along path)
+- Alert indicators (rotation + pulse scale)
+- Router glow on fault
+- Camera orbit limits (clamp to topology bounding box)
 
 ---
 
-## Dashboard UI — Component Tree (Terminal 3)
+## Terminal 3: Analytics Dashboard (port 5174)
 
+Flat 2D application with data panels, charts, and copilot interface. No 3D scene — the 3D topology view on T1 serves that purpose.
+
+### Tech Stack
+- React 18 + Vite
+- anime.js (panel transitions, alert animations, data updates)
+- ECharts (time-series charts, gauges, heatmaps)
+- Zustand (store for predictions, alerts, copilot, airgap)
+
+### Component Tree
 ```
-<App>
-├── <Canvas>                                // R3F Canvas
-│   ├── <ambientLight />
-│   ├── <directionalLight />
-│   ├── <OrbitControls />
-│   ├── <Ground />
-│   ├── <DeviceNode position=[x,0,z]>       // per device
-│   │   ├── <Satellite />
-│   │   ├── <Antenna />
-│   │   ├── <Rover />
-│   │   └── <Module />
-│   └── <GridHelper />
-├── <UIOverlay>
-│   ├── <AnalyticsPanel>                     // ECharts
-│   │   ├── <CpuGauge />                    // echarts gauge
-│   │   ├── <PowerBar />                    // echarts bar
-│   │   └── <TrendLine />                   // echarts line
-│   ├── <AlertFeed>                         // anime.js flash on new alert
-│   │   ├── <AlertItem severity=critical />
-│   │   ├── <AlertItem severity=warning />
-│   │   └── <AlertItem severity=info />
-│   ├── <CopilotPanel>
-│   │   ├── <ChatInput />
-│   │   └── <ChatMessage>                   // streaming LLM response
-│   ├── <LockdownButton>                    // REST: POST /lockdown
-│   └── <SendHelpButton>                    // WS: trigger runbook
-└── </App>
+App
+├── Sidebar (collapsible)
+│   ├── DashboardSelector (ML / Alerts / Copilot / Incidents / Airgap)
+│   └── QuickStatus (network health, active alerts count, prediction count)
+│
+├── MainPanel (context-dependent)
+│   │
+│   ├── ML Prediction Panel
+│   │   ├── TtiCountdown (ECharts gauge — "Next predicted incident in X min")
+│   │   ├── FailureProbability (ECharts bar chart per device)
+│   │   ├── TrendChart (ECharts time-series — utilization, errors, BGP state)
+│   │   ├── ModelEnsembleMetrics (per-model confidence + accuracy)
+│   │   └── AnomalyTimeline (ECharts scatter — outliers over time)
+│   │
+│   ├── Alert Correlation Panel
+│   │   ├── AlertList (grouped by topology location)
+│   │   ├── BlastRadiusOverlay (mini 2D network diagram with affected nodes)
+│   │   ├── SeverityDistribution (ECharts donut chart)
+│   │   └── CorrelatedIncidents (grouped by root cause)
+│   │
+│   ├── LLM Copilot Panel
+│   │   ├── ChatInput (text input + query history)
+│   │   ├── AnswerDisplay (structured Q1/Q2/Q3 cards)
+│   │   │   ├── Q1_What card (failure type, severity, affected devices)
+│   │   │   ├── Q2_Why card (root cause analysis with evidence chain)
+│   │   │   └── Q3_How card (remediation steps, CLI commands, escalation)
+│   │   ├── ContextSources (which runbook docs were retrieved)
+│   │   └── ConfidenceScore (LLM confidence indicator)
+│   │
+│   ├── Playbook Suggestion Panel
+│   │   ├── PlaybookList (ranked by match score)
+│   │   ├── PlaybookDetail (expanded: steps, commands, expected outcome)
+│   │   └── ExecuteButton (send playbook to T1 for action)
+│   │
+│   ├── Incidents Timeline
+│   │   ├── TimelineChart (ECharts timeline with severity color-coding)
+│   │   ├── IncidentDetail (expanded: duration, symptoms, resolution)
+│   │   └── StatsBar (total/active/resolved count)
+│   │
+│   └── Air-Gap Compliance Panel
+│       ├── OverallStatus (green/amber/red gauge)
+│       ├── PerCheckDetail (DNS / HTTP / Process / DataFlow)
+│       └── LastScanTimestamp
+│
+├── ConnectionManager (Zustand actions)
+│   ├── WS subscription: /ws/ml (predictions)
+│   ├── WS subscription: /ws/alerts (alert events)
+│   ├── WS subscription: /ws/copilot (LLM responses)
+│   ├── REST queries for historical data
+│   └── Actions: queryCopilot, acknowledgeAlert, executePlaybook
+│
+└── NotificationLayer (anime.js toast stack)
+    ├── NewAlert (slide-in from top, severity colored)
+    ├── PredictionWindow (TTI approaching threshold)
+    └── AirGapViolation (red flash)
 ```
 
-### State Management (Dashboard UI)
+### Zustand Stores (Shared Pattern)
 ```
-Zustand Store: useDashboardStore
-├── devices: Map<id, Device>              // updated via WS
-├── telemetry: Map<id, TelemetryData>     // updated via WS
-├── alerts: Alert[]                       // pushed via WS
-├── copilotMessages: Message[]
-├── selectedDevice: id | null
-├── addAlert(alert)                       // from WS
-├── updateTelemetry(data)                 // from WS
-├── sendCopilotMessage(text)              // → WS → LLM → WS stream
-├── lockdownDevice(id)                    // REST
-└── sendHelp(id)                          // WS → LLM runbook
-```
-
-### WebSocket Data Flow
-```
-[Backend WebSocket Server]
-         │
-         ├── /ws/telemetry  ──▶ push every 5s:
-         │       { deviceId, cpu, power, temp, status, timestamp }
-         │
-         ├── /ws/alerts     ──▶ push on event:
-         │       { id, deviceId, severity, message, timestamp }
-         │
-         ├── /ws/copilot    ──▶ bidirectional:
-         │       ← user sends: { text: "why is satellite 3 overheating?" }
-         │       → server streams: { token: "The" }
-         │       → server streams: { token: "satellite" }
-         │       → ... (LLM stream via Ollama)
-         │
-         └── /ws/status     ──▶ push every 15s:
-                 { uptime, connectedDevices, wsClients, llmStatus }
-         │
-         ▼
-[Zustand Store update] ──▶ React re-render
+store/networkStore     — topology state, device list, link states
+store/predictionStore  — ML predictions, TTI, anomaly scores
+store/alertStore       — active alerts, correlated incidents
+store/copilotStore     — query history, current answer, context sources
+store/airgapStore      — compliance checks, last scan
+store/uiStore          — active panel, sidebar state, notification queue
 ```
 
 ---
 
-## Animation Strategy (Both UIs)
+## Design Principles
 
-| Context | Engine | Examples |
-|---------|--------|----------|
-| 3D object animation | Three.js / R3F springs | Device rotation, orbit paths, pulse rings |
-| 3D scene transitions | drei transitions | Camera fly-to, device spotlight |
-| UI overlay enter/exit | Anime.js v4.4.1 | Panel slide-in, alert flash, tooltip fade |
-| UI continuous motion | Anime.js v4.4.1 | Loading shimmer, pulsing status indicators |
-| Scroll-based (if needed) | Anime.js scroll() | Timeline scrubbing, historical data scrub |
-
-**Anime.js v4.4.1 Syntax:**
-```js
-import { animate, stagger, scroll } from 'animejs'
-
-// Enter animation
-animate('.panel', {
-  translateY: [50, 0],
-  opacity: [0, 1],
-  duration: 400,
-  easing: 'easeOutCubic'
-})
-
-// Stagger children
-animate('.alert-item', {
-  opacity: [0, 1],
-  translateX: [-20, 0],
-  delay: stagger(80)
-})
-```
-
----
-
-## Shared 3D Components (Both UIs)
-
-Both frontends will share the same R3F component patterns (adapted for each context):
-
-```jsx
-// Ground plane
-const Ground = () => (
-  <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-    <planeGeometry args={[20, 20]} />
-    <meshStandardMaterial color="#1a1a2e" />
-  </mesh>
-)
-
-// Orbital camera
-import { OrbitControls } from '@react-three/drei'
-const CameraController = () => (
-  <OrbitControls
-    minDistance={5}
-    maxDistance={25}
-    maxPolarAngle={Math.PI / 2.5}
-    enableDamping
-  />
-)
-```
-
----
-
-## Why Two Apps Instead of One?
-
-| Factor | Single App | Two Apps |
-|--------|-----------|----------|
-| Bundle size | Large (ECharts + analytics + controls all in one) | Smaller, focused bundles |
-| Dev velocity | Must build both simultaneously | Can do S9A (Devices UI) then S9B (Dashboard UI) |
-| Focus | Operators see both control + analytics | Separation of concerns |
-| Port complexity | Need tabs/routes/role switching | Each app is its own focused tool |
-| Reuse | Shared components save code | Shared patterns (same stack) saves learning |
-
-Both apps share identical 3D rendering foundation. The differentiation is entirely in the **overlay layer** and **data flow patterns** (REST vs WebSocket).
+1. **No internet required** — all assets local, no CDN
+2. **Real-time first** — WS push for live data, REST for history/commands
+3. **Structured output** — LLM responses render as typed cards, not raw text
+4. **Topology aware** — alerts and predictions always reference network graph
+5. **Notification priority** — critical alerts animate, info alerts stack quietly
+6. **No 2D/4D fallback** — 3D is primary for T1; T3 is purpose-built 2D dashboard
+7. **State parity** — both frontends share Zustand pattern; backend mirrors via WS

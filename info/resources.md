@@ -1,97 +1,124 @@
-# 📚 Resources Index
+# Stack References — PS13
 
-## 🖥️ Frontend Stack
-
-### React Three Fiber
-- **Framework**: [@react-three/fiber](https://docs.pmnd.rs/react-three-fiber) — React renderer for Three.js
-- **Helpers**: [@react-three/drei](https://github.com/pmndrs/drei) — Utility components (OrbitControls, Text, RoundedBox, etc.)
-- **Three.js**: [three.js docs](https://threejs.org/docs/) — Core 3D engine
-- **JavaScript API**: [three.js manual](https://threejs.org/manual/) — Tutorials and guides
-
-### Animation
-- **Anime.js v4**: `npm install animejs@4.4.1`
-  - ESM import: `import { animate, scroll, stagger, timeline } from 'animejs'`
-  - Must use v4.4.1 specifically (breaking changes from v3)
-  - v3 syntax `anime({...})` is deprecated — use named exports instead
-  - GitHub: [https://github.com/juliangarnier/anime](https://github.com/juliangarnier/anime)
-  - v4 docs are minimal — rely on TypeScript types and examples
-
-### Charts
-- **Apache ECharts**: [echarts.apache.org](https://echarts.apache.org/en/option.html) — Chart configuration reference
-- **echarts-for-react**: [npm](https://www.npmjs.com/package/echarts-for-react) — React wrapper for ECharts
-- **Theme Builder**: [echarts.theme-builder](https://echarts.apache.org/en/theme-builder.html) — Custom chart themes
-
-### Build Tools
-- **Vite**: [vite.dev/guide](https://vite.dev/guide/) — Frontend build tool
-- **Vite Config**: [vite.dev/config](https://vite.dev/config/) — Configuration reference
+Key documentation, GitHub repos, and reference material for the PS13 tech stack.
 
 ---
 
-## ⚙️ Backend Stack
+## Network Simulation
 
-### FastAPI
-- **Docs**: [fastapi.tiangolo.com](https://fastapi.tiangolo.com/) — Main documentation
-- **WebSockets**: [fastapi WebSocket docs](https://fastapi.tiangolo.com/advanced/websockets/) — Real-time push
-- **Uvicorn**: [uvicorn.org](https://www.uvicorn.org/) — ASGI server
+| Resource | Link | Purpose |
+|----------|------|---------|
+| Containerlab Docs | [containerlab.dev](https://containerlab.dev) | Topology definition, node types, FRR images |
+| FRRouting Docs | [docs.frrouting.org](https://docs.frrouting.org) | BGP, OSPF, MPLS, LDP configuration |
+| Containerlab FRR Quickstart | [containerlab.dev/manual/kinds/frr](https://containerlab.dev/manual/kinds/frr) | FRR kind reference for Containerlab |
+| StrongSwan Docs | [strongswan.org/documentation](https://www.strongswan.org/documentation.html) | IPsec site-to-site configuration |
+| TRex Traffic Generator | [trex-tgn.cisco.com](https://trex-tgn.cisco.com) | Realistic traffic patterns for simulation |
+| Containerlab GitHub | [github.com/srl-labs/containerlab](https://github.com/srl-labs/containerlab) | Issue tracker, examples, releases |
 
-### LLM / ML
-- **Ollama**: [ollama.ai](https://ollama.ai/) — Local LLM runner
-- **Qwen3**: [github.com/QwenLM/Qwen3](https://github.com/QwenLM/Qwen3) — Model documentation
-- **Ollama Python**: [github.com/ollama/ollama-python](https://github.com/ollama/ollama-python) — Python client library
-
-### Infrastructure
-- **floci.io**: [floci.io/docs](https://floci.io/docs) — Local AWS emulation (S3, SQS, Lambda)
-
----
-
-## 🔧 Tools
-
-### JavaScript / Node
-- **npm**: [docs.npmjs.com](https://docs.npmjs.com/) — Package manager docs
-- **Node.js**: [nodejs.org/docs](https://nodejs.org/docs/latest/api/) — Runtime API
-
-### State Management
-- **Zustand**: [github.com/pmndrs/zustand](https://github.com/pmndrs/zustand) — Lightweight state management
-
-### Python
-- **Python 3.12+**: [docs.python.org](https://docs.python.org/3/) — Standard library
-- **Pydantic**: [docs.pydantic.dev](https://docs.pydantic.dev/) — Data validation (FastAPI models)
-
-### Docker
-- **Docker Compose**: [docs.docker.com/compose](https://docs.docker.com/compose/) — Multi-container orchestration
+### Example Topologies
+- [srl-labs/clab-demo](https://github.com/srl-labs/clab-demo) — Reference multi-vendor topologies
+- [FRR BGP Lab](https://containerlab.dev/lab-examples/linknet/) — BGP + OSPF + MPLS examples
 
 ---
 
-## 🎨 Design References
+## Telemetry Pipeline
 
-- **R3F + drei examples**: [@react-three/drei examples](https://github.com/pmndrs/drei#readme) — Component usage examples
-- **Three.js journey**: [threejs-journey.com](https://threejs-journey.com/) — Tutorial course (paid, high quality)
-- **Poimandres ecosystem**: [pmnd.rs](https://pmnd.rs/) — R3F ecosystem (zustand, drei, etc.)
-
----
-
-## 🐛 Debugging & Performance
-
-- **React DevTools**: [react.dev/learn/react-developer-tools](https://react.dev/learn/react-developer-tools) — Component inspection
-- **Three.js Inspector**: Chrome extension for Three.js scene inspection
-- **Vite HMR**: Hot Module Replacement for fast iteration
-- **FastAPI Swagger**: Available at `http://localhost:8000/docs` — automatic API docs
+| Resource | Link | Purpose |
+|----------|------|---------|
+| Prometheus Docs | [prometheus.io/docs](https://prometheus.io/docs) | Time-series DB, scrape configs, alert rules |
+| Telegraf Docs | [docs.influxdata.com/telegraf](https://docs.influxdata.com/telegraf) | Metrics collection, output plugins |
+| Kafka Docs | [kafka.apache.org/documentation](https://kafka.apache.org/documentation) | Stream processing, topic management |
+| Elasticsearch Docs | [elastic.co/guide](https://www.elastic.co/guide) | Log storage, search, Kibana dashboards |
+| Prometheus Docker | [hub.docker.com/r/prom/prometheus](https://hub.docker.com/r/prom/prometheus) | Docker image tags, config mounts |
 
 ---
 
-## 📋 Key Versions
+## Predictive ML
 
-| Package | Version | Notes |
-|---------|---------|-------|
-| react | ^18 | Latest stable |
-| vite | ^5 | Fast dev server |
-| three | ^0.170 | Latest stable |
-| @react-three/fiber | ^8 | R3F core |
-| @react-three/drei | ^9 | R3F utilities |
-| animejs | 4.4.1 | **Must use v4.4.1** (ESM, named exports) |
-| echarts | ^5 | Apache ECharts |
-| echarts-for-react | ^3 | React ECharts wrapper |
-| zustand | ^5 | State management |
-| fastapi | ^0.115 | Python backend |
-| uvicorn | ^0.34 | ASGI server |
-| qwen3 | 8B / 4B-Thinking | Ollama models |
+| Resource | Link | Purpose |
+|----------|------|---------|
+| PyTorch Docs | [pytorch.org/docs](https://pytorch.org/docs) | LSTM, Autoencoder implementation, ONNX export |
+| Prophet Docs | [facebook.github.io/prophet](https://facebook.github.io/prophet) | Trend/seasonality forecasting |
+| PyTorch Geometric | [pyg.org](https://pyg.org) | GNN layers, graph data handling |
+| XGBoost Docs | [xgboost.readthedocs.io](https://xgboost.readthedocs.io) | Gradient boosting classifier + regressor |
+| scikit-learn | [scikit-learn.org](https://scikit-learn.org) | Isolation Forest, train/test split, metrics |
+| ONNX Runtime | [onnxruntime.ai/docs](https://onnxruntime.ai/docs) | Cross-platform model inference |
+| skl2onnx | [github.com/onnx/sklearn-onnx](https://github.com/onnx/sklearn-onnx) | Convert sklearn models to ONNX |
+| ONNX PyTorch Export | [pytorch.org/docs/stable/onnx](https://pytorch.org/docs/stable/onnx.html) | torch.onnx.export reference |
+
+### ML Reference Papers
+- "Time Series Anomaly Detection using LSTM Autoencoders" — Malhotra et al. (2016)
+- "Prophet: Forecasting at Scale" — Taylor & Letham (2018)
+- "Semi-Supervised Classification with Graph Convolutional Networks" — Kipf & Welling (2017)
+- "Isolation Forest" — Liu, Ting & Zhou (2008)
+
+---
+
+## LLM + RAG
+
+| Resource | Link | Purpose |
+|----------|------|---------|
+| Ollama Docs | [ollama.ai/docs](https://ollama.ai/docs) | Model management, API reference, modelfiles |
+| Qwen3-8B Model Card | [huggingface.co/Qwen/Qwen3-8B](https://huggingface.co/Qwen/Qwen3-8B) | Model architecture, prompt format |
+| Qwen3-4B-Thinking | [huggingface.co/Qwen/Qwen3-4B-Base](https://huggingface.co/Qwen/Qwen3-4B-Base) | Lightweight reasoning model |
+| ChromaDB Docs | [docs.trychroma.com](https://docs.trychroma.com) | Vector store, embedding functions, query |
+| LangChain Docs | [python.langchain.com](https://python.langchain.com) | RAG pipeline, text splitting, prompt templates |
+| Ollama Python | [github.com/ollama/ollama-python](https://github.com/ollama/ollama-python) | Python client for Ollama API |
+
+### RAG Patterns
+- [langchain-ai/rag-from-scratch](https://github.com/langchain-ai/rag-from-scratch) — RAG tutorial series
+- [chroma-core/chroma](https://github.com/chroma-core/chroma) — ChromaDB GitHub
+- BAAI/bge-small-en-v1.5 — Embedding model (works with ChromaDB)
+
+---
+
+## Frontend
+
+| Resource | Link | Purpose |
+|----------|------|---------|
+| Three.js Docs | [threejs.org/docs](https://threejs.org/docs) | Core 3D rendering API |
+| R3F Docs | [docs.pmnd.rs/react-three-fiber](https://docs.pmnd.rs/react-three-fiber) | React renderer for Three.js |
+| @react-three/drei | [github.com/pmndrs/drei](https://github.com/pmndrs/drei) | R3F utilities (OrbitControls, Html, Text) |
+| anime.js | [animejs.com](https://animejs.com) | Animation library (traffic, alerts, UI) |
+| ECharts | [echarts.apache.org](https://echarts.apache.org) | Charts, gauges, timelines for dashboard |
+| Zustand | [github.com/pmndrs/zustand](https://github.com/pmndrs/zustand) | Lightweight state management |
+| Vite | [vitejs.dev](https://vitejs.dev) | Build tool, dev server with HMR |
+
+### R3F Patterns
+- [pmndrs/gltfjsx](https://github.com/pmndrs/gltfjsx) — If we switch to GLTF models later
+- R3F Line component: `<Line>` from drei
+- Points + BufferGeometry for traffic particles
+- useFrame for animation loop (traffic, glow pulses)
+
+---
+
+## Backend + Infrastructure
+
+| Resource | Link | Purpose |
+|----------|------|---------|
+| FastAPI Docs | [fastapi.tiangolo.com](https://fastapi.tiangolo.com) | REST + WebSocket, dependency injection |
+| FastAPI WebSocket | [fastapi.tiangolo.com/advanced/websocket](https://fastapi.tiangolo.com/advanced/websocket/) | WS broadcast patterns |
+| NetworkX Docs | [networkx.org/documentation](https://networkx.org/documentation) | Graph analysis, BFS, centrality |
+| floci.io | [floci.io](https://floci.io) | Local AWS emulation (S3, DynamoDB, Lambda) |
+| Docker Compose | [docs.docker.com/compose](https://docs.docker.com/compose) | Multi-service orchestration |
+| Python asyncio | [docs.python.org/3/library/asyncio](https://docs.python.org/3/library/asyncio.html) | Async task management for pipeline |
+
+---
+
+## Hardware Optimization
+
+| Resource | Link | Purpose |
+|----------|------|---------|
+| NVIDIA CUDA Docs | [docs.nvidia.com/cuda](https://docs.nvidia.com/cuda) | GPU compute setup |
+| Ollama GPU Guide | [ollama.ai/blog/gpu](https://ollama.ai/blog/gpu) | GPU acceleration for Ollama |
+| PyTorch CUDA | [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally) | PyTorch CUDA installation |
+
+---
+
+## Learning Paths (if starting fresh)
+
+- **MPLS Fundamentals**: RFC 3031 (MPLS Architecture), RFC 5036 (LDP)
+- **BGP Deep Dive**: RFC 4271, "Internet Routing Architectures" — Sam Halabi
+- **Containerlab**: Start with [quickstart guide](https://containerlab.dev/quickstart/)
+- **Time-Series ML**: PyTorch LSTM tutorial, Prophet quickstart
+- **RAG with Ollama**: ChromaDB "getting started" + LangChain RAG tutorial

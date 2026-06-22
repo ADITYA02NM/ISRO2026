@@ -1,188 +1,236 @@
-# ISRO BAH 2026 — Challenge 13 (Devices UI + Dashboard UI)
+# Air-Gapped Predictive Copilot for Secure MPLS Operations
 
-> **Team Cyber Assassins** (4 members: Solo Developer — same guy, 4 times ☠️)
+**ISRO 2026 — Team Cyber Assassins**
 
-A dual-3D-frontend satellite ground control system with real-time telemetry, fault injection, lockdown isolation, runbook automation, and an AI copilot powered by local LLMs (Qwen3-8B / Qwen3-4B-Thinking on Ollama).
+A solo-developed, air-gapped NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN network, streams real-time telemetry, predicts failures using an ensemble of ML models, and provides natural-language diagnostic assistance via an offline LLM with Retrieval-Augmented Generation (RAG).
+
+No cloud dependency. No internet required at runtime. All inference, storage, and orchestration runs locally on a single RTX 4060 laptop.
 
 ---
 
-##  Architecture — 3 Terminal Layout
+## Architecture (3-Terminal)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Terminal 1 : Devices UI (5173)    │  Terminal 3 : Dashboard UI (5174) │
-│  ┌───────────────────┐             │  ┌───────────────────┐            │
-│  │  React + Vite     │             │  │  React + Vite     │            │
-│  │  + R3F + drei     │             │  │  + R3F + drei     │            │
-│  │  + Three.js       │             │  │  + Three.js       │            │
-│  │  + Anime.js       │             │  │  + Anime.js       │            │
-│  │                   │             │  │  + ECharts        │            │
-│  │  3D NOC Room      │             │  │  3D Room +        │            │
-│  │  Interactive      │             │  │  Analytics        │            │
-│  │  Devices          │             │  │  Overlays         │            │
-│  │  Hover Info       │             │  │  Alert Feed       │            │
-│  │  Fault Injection  │             │  │  Copilot Q&A      │            │
-│  │  Lockdown Device  │             │  │  Lockdown/SendHelp│            │
-│  └────────┬──────────┘             │  └────────┬──────────┘            │
-│           │ REST                          WebSocket │                   │
-│           │ (commands)                    (push)    │                   │
-│           ▼                                         ▼                   │
-│  ┌──────────────────────────────────────────────────────┐              │
-│  │  Terminal 2 : Backend (8000)                         │              │
-│  │  FastAPI + WebSocket + ML/LLM                        │              │
-│  │  Qwen3-8B (primary) / Qwen3-4B-Thinking (fallback)  │              │
-│  │  ┌──────────┐  ┌──────────┐  ┌───────────────────┐  │              │
-│  │  │ REST API │  │WS Server│  │ LLM Orchestrator  │  │              │
-│  │  │ CRUD     │  │Push     │  │ Fault Analysis     │  │              │
-│  │  │ Commands │  │Telemetry│  │ Runbook Generation │  │              │
-│  │  │ Config   │  │Alerts   │  │ Anomaly Detection  │  │              │
-│  │  └──────────┘  └──────────┘  └───────────────────┘  │              │
-│  └──────────────────────────────────────────────────────┘              │
-└─────────────────────────────────────────────────────────────────────────┘
-         Data Paths:
-         ───────────
-         REST    (Devices UI → Backend) ── commands, queries, config
-         WebSocket (Backend → Dashboard UI) ── telemetry push, alerts, status
+┌──────────────────────────────────────────────────────────────────┐
+│                    TERMINAL 1: Network Topology (port 5173)      │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  3D Multi-site MPLS Network (R3F + drei + Three.js)        │  │
+│  │  • Bangalore HQ / Mumbai DC / Chennai DR / Delhi Regional  │  │
+│  │  • PE/P/CE routers + IPsec gateways + SD-WAN edges         │  │
+│  │  • BGP peer links, MPLS LSPs, traffic utilization          │  │
+│  │  • Click router → hover info (model, peers, status)        │  │
+│  │  • Fault injection panel (link fail, BGP flap, congestion) │  │
+│  │  • Anime.js animated traffic + alert indicators            │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │ REST (sim control, config push)
+                               │ WS (live topology updates)
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    TERMINAL 2: Backend (port 8000)                │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ Containerlab  │  │ Telemetry    │  │ ML Engine            │   │
+│  │ Orchestrator  │→│ Pipeline     │→│ • LSTM (time series)  │   │
+│  │ • FRR BGP/    │  │ • Telegraf   │  │ • Prophet (trend)    │   │
+│  │   OSPF/MPLS   │  │ • Prometheus │  │ • GNN (topology)     │   │
+│  │ • IPsec       │  │ • Kafka      │  │ • XGBoost (classify) │   │
+│  │ • TRex traffic│  │ • ELK Stack  │  │ • IsolationForest    │   │
+│  │ • 7 fault     │  │              │  │ • Autoencoder        │   │
+│  │   scenarios   │  │              │  │ • TTI regressor      │   │
+│  └──────────────┘  └──────────────┘  └──────────┬───────────┘   │
+│                                                  │              │
+│  ┌──────────────────────┐  ┌──────────────────┐  │              │
+│  │ LLM Copilot          │  │ NOC Workflow     │  │              │
+│  │ • Qwen3-8B (Ollama)  │  │ • NetworkX graph │  │              │
+│  │ • ChromaDB RAG       │  │ • Alert corr.    │  │              │
+│  │ • Qwen3-4B-Thinking  │  │ • Playbook gen.  │  │              │
+│  │   (fallback)         │  │ • Incident sum.  │  │              │
+│  └──────────────────────┘  └──────────────────┘  │              │
+│                                                   │              │
+│  ┌──────────────────────────────────────────┐     │              │
+│  │ Air-Gap Integrity Scanner                │     │              │
+│  │ • DNS leak detection  • Process audit    │     │              │
+│  │ • HTTP proxy check    • Data flow verify │     │              │
+│  └──────────────────────────────────────────┘     │              │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │ WS (predictions, alerts, RAG)
+                               ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    TERMINAL 3: Analytics Dashboard (port 5174)   │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  Network Analytics Dashboard (React + anime.js + ECharts)  │  │
+│  │  • ML Prediction Panel (TTI, failure probability, trend)   │  │
+│  │  • Alert Correlation Feed (topology-aware grouping)        │  │
+│  │  • LLM Copilot Panel (Q1/Q2/Q3 structured answers)        │  │
+│  │  • Playbook Suggestion Panel                              │  │
+│  │  • Incidents Timeline + History                           │  │
+│  │  • Air-Gap Compliance Status                             │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Two frontends, one backend, three terminals.** Both UIs are **strictly 3D** — built with React Three Fiber + drei + Three.js. No flat/2D fallback anywhere.
+---
+
+## Data Flow
+
+```
+Containerlab ──► Telegraf ──► Prometheus ──► Kafka ──► ML Engine ──► LLM Copilot
+   (FRR nodes)   (metrics)    (store/alert)   (stream)   (inference)    (RAG + Qwen3)
+                                                              │
+                                                              ▼
+                                                     NOC Workflow
+                                                  (correlation + playbook)
+                                                              │
+                                                              ▼
+                                                    Dashboard UI (WS push)
+                                                 + Topology UI (REST poll)
+```
+
+- **Topology View** polls REST for simulation state, subscribes to WS for real-time topology updates
+- **Dashboard** subscribes to WS push from ML predictions, alert correlation, and copilot responses
+- **Simulation → Telemetry**: Containerlab exports interface counters, BGP state, CPU/memory every 5s
+- **Telemetry → ML**: Prometheus stores, Kafka streams, ML engine runs periodic + event-driven inference
+- **ML → LLM**: Prediction anomalies trigger LLM diagnostic analysis with runbook RAG context
+- **All data stays local**: No external DNS, HTTP proxies, or cloud endpoints at runtime
 
 ---
 
-##  Tech Stack
+## Features
 
-| Layer | Technology | Version / Notes |
-|-------|-----------|----------------|
-| **Frontend 1** (Devices UI) | React + Vite + R3F + drei + Three.js | Port 5173 |
-| **Frontend 2** (Dashboard UI) | React + Vite + R3F + drei + Three.js + ECharts | Port 5174 |
-| **UI Animation** | Anime.js | v4.4.1 (ESM: `import { animate } from 'animejs'`) |
-| **Backend** | FastAPI + Uvicorn + WebSocket | Port 8000 |
-| **ML / LLM** | Qwen3-8B (primary) + Qwen3-4B-Thinking (fallback) | Ollama local |
-| **Infrastructure** | floci.io (local AWS emulation) | No cloud dependency |
-| **Font** | Inter (sans-serif), JetBrains Mono (code/monitor) | Google Fonts |
-| **Package Manager** | npm | |
+### Phase 1 — Network Simulation
+- Containerlab topology with 4 sites (HQ, DC, DR, Regional)
+- FRRouting: BGP (eBGP/iBGP), OSPF, MPLS, LDP
+- IPsec site-to-site tunnels
+- TRex traffic generator for realistic data-plane load
+- 7 fault injection scenarios: link fail, BGP flap, congestion, route leak, interface error, node crash, MPLS LSP break
+
+### Phase 2 — Telemetry Pipeline
+- Telegraf agent on each container for metrics collection
+- Prometheus for time-series storage and alert rules
+- Kafka for streaming telemetry to ML engine
+- ELK stack for log aggregation and search
+
+### Phase 3 — Predictive ML Ensemble
+- **LSTM**: Time-series prediction of interface utilization, error rates
+- **Prophet**: Trend/seasonality decomposition of network KPIs
+- **GNN**: Graph Neural Network for topology-aware failure propagation
+- **XGBoost**: Classifier for fault type given telemetry signature
+- **Isolation Forest**: Real-time anomaly detection on metric streams
+- **Autoencoder**: Reconstruction-error based anomaly detection
+- **TTI Regressor**: Time-to-incident prediction for proactive maintenance
+- All models exported to ONNX for air-gap portability
+
+### Phase 4 — Offline LLM Copilot
+- **Qwen3-8B** via Ollama for diagnostic analysis and runbook generation
+- **ChromaDB** vector store with 50+ internal runbook documents
+- **Qwen3-4B-Thinking** as lightweight fallback for resource-constrained queries
+- Structured output format:
+  - **Q1 (What)**: Failure type, severity, affected devices
+  - **Q2 (Why)**: Root cause analysis with evidence chain
+  - **Q3 (How)**: Remediation steps, CLI commands, escalation path
+
+### Phase 5 — NOC Workflow Automation
+- **NetworkX** graph analysis for topology-aware alert correlation
+- Alert prioritization based on network centrality and blast radius
+- Automated playbook suggestion matching current symptoms
+- Incident timeline summarization with severity progression
+
+### Phase 6 — Air-Gap Scanner + Validation
+- DNS leak detection (verifies no external DNS queries)
+- HTTP proxy validation (confirms no outbound connections)
+- Process isolation audit (only whitelisted processes running)
+- Data flow verification (proves no PII/data leaves host)
+- Comprehensive validation: all phases verified end-to-end
 
 ---
 
-## ✨ Features
-
-###  ️ Devices UI (Terminal 1)
-- **3D NOC Room** — full R3F/drei/Three.js scene with geometric device models
-- **Hover Info Panel** — anime.js animated overlay on device hover
-- **Fault Injection** — buttons to inject failures into any device for testing
-- **Lockdown Device** — isolate a device from the network with one click
-
-###  ️ Dashboard UI (Terminal 3)
-- **Same 3D Room Scene** — identical geometric base, different overlay layers
-- **Analytic Overlays** — ECharts panels overlaid on the 3D view (CPU, power, trends)
-- **Alert Feed** — real-time WebSocket-pushed alerts with severity coloring
-- **Copilot Q&A Panel** — ask natural-language questions, LLM answers with context
-- **Lockdown Device** — active control (not viewer-only): isolate any device
-- **Send Help** — trigger automated runbook for a failing device
-
-### ⚙️ Backend (Terminal 2)
-- **REST API** — CRUD for devices, commands, configuration (Devices UI consumes)
-- **WebSocket Server** — real-time telemetry push to Dashboard UI
-- **LLM Orchestrator** — fault analysis, runbook generation, anomaly detection
-- **Dual Data Paths** — REST for command/response, WebSocket for push/stream
-
----
-
-##  Sessions / Roadmap
-
-| Session | Status | Deliverable |
-|---------|--------|-------------|
-| S1–S8 | ✅ Done | Hardware setup, Ollama, project scaffold, infra config, font install, planning docs |
-| **S9A** | ⏳ Next | **Devices UI** — 3D NOC room, interactive devices, fault injection, hover panels, lockdown |
-| **S9B** | ⤵️ Follows | **Dashboard UI** — 3D analytics overlays, alert feed, copilot panel, lockdown/send-help |
-| S10 | 🔲 Review | Integration testing, WebSocket stress test, end-to-end verification, bug fixes |
-
----
-
-## 📁 Project Structure (Final)
+## Project Structure
 
 ```
 ISRO2026/
-├── devices-ui/              # 📡 Terminal 1 — 3D Devices Control UI (port 5173)
-│   ├── src/
-│   │   ├── components/      # R3F 3D components (Room, DeviceNode, Camera, UI overlays)
-│   │   ├── hooks/           # useWebSocket, useDeviceStore, useAnimation
-│   │   ├── scenes/          # Canvas scene definitions
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.js
-├── dashboard/               # 📊 Terminal 3 — 3D Dashboard Analytics UI (port 5174)
-│   ├── src/
-│   │   ├── components/      # R3F 3D components (shared patterns, different overlays)
-│   │   ├── hooks/           # useWebSocket, useAlertStore, useCopilot
-│   │   ├── scenes/          # Canvas scene definitions
-│   │   ├── panels/          # ECharts + analytics overlay components
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── public/
-│   ├── package.json
-│   └── vite.config.js
-├── backend/                 # 🖥️ Terminal 2 — FastAPI server (port 8000)
-│   ├── app/
-│   │   ├── api/             # REST endpoints
-│   │   ├── ws/              # WebSocket handlers
-│   │   ├── llm/             # Qwen3 integration
-│   │   ├── models/          # Pydantic schemas
-│   │   └── main.py
-│   ├── requirements.txt
-│   └── Dockerfile
-├── info/                    # Documentation (these files)
-├── .gitignore
-├── README.md
-├── SR.md                    # 🔒 Secrets + rules (gitignored — not tracked)
-└── final.md                 # ISRO portal submission content
+├── devices-ui/             # Terminal 1: Network Topology UI (Vite + R3F)
+├── dashboard/              # Terminal 3: Analytics Dashboard (Vite + React)
+├── backend/                # Terminal 2: FastAPI backend
+├── simulation/             # Containerlab topology definitions
+│   ├── topology.clab.yml   # 4-site MPLS topology
+│   ├── frr/                # FRRouting configs (BGP, OSPF, MPLS, LDP)
+│   ├── ipsec/              # StrongSwan IPsec configurations
+│   └── scripts/            # Fault injection automation
+├── telemetry/              # Pipeline configurations
+│   ├── telegraf/           # Telegraf agent configs
+│   ├── prometheus/         # Prometheus scrape + alert rules
+│   ├── kafka/              # Kafka topic definitions
+│   └── elasticsearch/      # ELK stack configs
+├── ml/                     # Predictive models
+│   ├── lstm/               # Time-series prediction
+│   ├── prophet/            # Trend decomposition
+│   ├── gnn/                # Graph neural network
+│   ├── xgboost/            # Fault classification
+│   ├── anomaly/            # Isolation Forest + Autoencoder
+│   └── tti/                # Time-to-incident regressor
+├── llm/                    # LLM Copilot
+│   ├── chroma/             # ChromaDB vector store
+│   ├── rag/                # RAG pipeline code
+│   └── runbooks/           # Internal runbook documents (50+)
+├── airgap/                 # Air-gap integrity scanner
+└── info/                   # Documentation
+    ├── main.md             # Architecture deep-dive
+    ├── frontend.md          # UI component trees
+    ├── flow.md             # Data flow sequences
+    ├── build.md            # Build plan (6 phases)
+    ├── resources.md         # Stack references
+    └── learn.md            # Learning path
 ```
 
 ---
 
-##  Fonts Installed
-- **Inter** — sans-serif UI text (Labels, tooltips, panels)
-- **JetBrains Mono** — monospace for telemetry values, terminal output, code excerpts
+## Tech Stack
 
-Check: `fc-list | grep -i inter` / `fc-list | grep -i "jetbrains mono"`
-
----
-
-##  Scripts Reference
-
-```bash
-# Start all 3 terminals (dev mode)
-# Terminal 1 — Devices UI
-cd devices-ui && npm run dev
-
-# Terminal 2 — Backend (separate terminal)
-cd backend && uvicorn app.main:app --reload --port 8000
-
-# Terminal 3 — Dashboard UI (separate terminal)
-cd dashboard && npm run dev
-
-# Build for production
-cd devices-ui && npm run build
-cd dashboard && npm run build
-cd backend && docker build -t isro-backend .
-```
+| Component | Technology |
+|-----------|-----------|
+| Network Sim | Containerlab, FRRouting (BGP/OSPF/MPLS/LDP), StrongSwan IPsec, TRex |
+| Frontend (T1) | React 18, Vite, Three.js, R3F, @react-three/drei, Zustand |
+| Frontend (T3) | React 18, Vite, anime.js, ECharts, Zustand |
+| Backend | Python 3.11, FastAPI, WebSockets, NetworkX |
+| ML Engine | PyTorch, scikit-learn, XGBoost, Prophet, ONNX Runtime |
+| LLM | Ollama, Qwen3-8B, Qwen3-4B-Thinking, ChromaDB, LangChain |
+| Telemetry | Telegraf, Prometheus, Kafka, Elasticsearch, Kibana |
+| Infrastructure | floci.io (local S3/DynamoDB/Lambda emulation), Docker |
 
 ---
 
-##  Data Flow Summary
+## Hardware
 
-```
-Devices UI ──REST──▶ Backend ──WebSocket──▶ Dashboard UI
-               ◀──REST──       ◀──WS ack──
-```
-
-- **Devices UI** sends commands via HTTP REST, receives immediate responses
-- **Backend** processes commands, runs LLM analysis, pushes telemetry/alerts via WebSocket
-- **Dashboard UI** subscribes to WebSocket stream, displays real-time data overlays + alert feed + copilot
+| Component | Spec |
+|-----------|------|
+| GPU | NVIDIA RTX 4060 (8GB VRAM) |
+| CPU | AMD Ryzen 9 8945HS |
+| RAM | 15 GB |
+| Storage | Local NVMe |
+| Network | No internet required at runtime |
 
 ---
 
-## 📜 License & Context
-Built for **ISRO BAS 2026 — Challenge 13**. Solo team submission under Team Cyber Assassins.
+## Build Roadmap (6 Phases)
+
+| Phase | Focus | Duration |
+|-------|-------|----------|
+| 1 | Containerlab Network Simulation (topology, FRR, IPsec, TRex, 7 fault scenarios) | Days 1-3 |
+| 2 | Telemetry Pipeline (Telegraf → Prometheus → Kafka → ELK) | Days 3-5 |
+| 3 | Predictive ML Ensemble (6 models + TTI regressor + ONNX export) | Days 5-8 |
+| 4 | Offline LLM Copilot (Qwen3-8B, ChromaDB RAG, structured Q1/Q2/Q3) | Days 8-10 |
+| 5 | NOC Workflow Automation (alert correlation, playbook generation, summaries) | Days 10-12 |
+| 6 | Air-Gap Scanner + End-to-End Validation | Days 12-14 |
+
+Each phase includes dual-frontend integration points. Phase 1 can run standalone; Phases 2-6 build on it incrementally.
+
+---
+
+## Status
+
+**Phase: Architecture complete.** All 8 documentation files rewritten for PS13 alignment. Implementation begins after PS13 submission review.
+
+---
+
+*Solo-developed. Air-gapped by design. No cloud dependency.*
+

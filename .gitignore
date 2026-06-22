@@ -1,79 +1,71 @@
-# ─── SECRETS (NEVER COMMIT) ─────────────────────────────────────────
+# === SR.md — GitHub Personal Access Token ===
 SR.md
-.env
-*.key
-*.pem
-*.p12
-*.pfx
-**/secrets/
 
-# ─── Python ────────────────────────────────────────────────────────
+# === Backend ===
+backend/__pycache__/
+backend/venv/
+backend/.venv/
+backend/*.pyc
+backend/.env
+
+# === Simulation ===
+simulation/topology/
+simulation/logs/
+simulation/*.log
+
+# === Telemetry ===
+telemetry/prometheus/data/
+telemetry/kafka/data/
+telemetry/elasticsearch/data/
+
+# === ML Models ===
+ml/**/checkpoints/
+ml/**/models/*.pth
+ml/**/models/*.pt
+ml/**/models/*.onnx
+ml/**/__pycache__/
+ml/**/data/
+
+# === LLM ===
+llm/chroma/embeddings/
+llm/chroma/index/
+llm/.ollama/
+llm/__pycache__/
+
+# === Node ===
+node_modules/
+devices-ui/node_modules/
+dashboard/node_modules/
+devices-ui/dist/
+dashboard/dist/
+
+# === Python ===
 __pycache__/
-*.py[cod]
+*.pyc
+*.pyo
 *.egg-info/
 dist/
 build/
 *.egg
-.venv/
+.venv
 venv/
-env/
 
-# ─── Node / JS ─────────────────────────────────────────────────────
-node_modules/
-dist/
-.next/
-build/
-*.tsbuildinfo
-
-# ─── ML Models (Large Binary Files) ────────────────────────────────
-ml/models/**/*.pt
-ml/models/**/*.pkl
-ml/models/**/*.gguf
-ml/models/**/*.onnx
-ml/models/**/*.bin
-ml/models/**/*.safetensors
-!ml/models/*.md
-
-# ─── Data (Generated) ──────────────────────────────────────────────
-data/
-*.parquet
-*.csv
-!data/*.md
-telemetry/prometheus/data/
-
-# ─── Docker ────────────────────────────────────────────────────────
-docker/images/*.tar
-docker/python-packages.tar.gz
-
-# ─── IDE / OS ──────────────────────────────────────────────────────
-.idea/
-.vscode/
+# === OS ===
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
 
-# ─── Logs ──────────────────────────────────────────────────────────
+# === IDE ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Logs ===
 *.log
 logs/
-
-# ─── Telemetry ─────────────────────────────────────────────────────
-telemetry/kafka/data/
-telemetry/elasticsearch/data/
-telemetry/grafana/data/
-telemetry/prometheus/data/
-
-# ─── Simulator ──────────────────────────────────────────────────────
-sim/*.yml.bak
-sim/clab-*/
-
-# ─── Frontends (Dual 3D Apps) ──────────────────────────────────────
-devices-ui/dist/
-devices-ui/.env
-dashboard/dist/
-dashboard/.env
-
-# ─── Floci ─────────────────────────────────────────────────────────
-floci/data/
-floci/*.bak
