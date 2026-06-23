@@ -1,0 +1,560 @@
+{
+  "name": "ps13",
+  "type": "clab",
+  "clab": {
+    "config": {
+      "prefix": "clab",
+      "mgmt": {
+        "network": "ps13-mgmt",
+        "bridge": "br-36d5add6b77d",
+        "ipv4-subnet": "172.20.0.0/24",
+        "ipv4-gw": "172.20.0.1",
+        "external-access": true
+      }
+    }
+  },
+  "ssh-pub-keys": [],
+  "nodes": {
+    "ce1-blr": {
+      "index": "0",
+      "shortname": "ce1-blr",
+      "longname": "clab-ps13-ce1-blr",
+      "fqdn": "ce1-blr.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-blr",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.10",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-blr",
+        "clab-node-longname": "clab-ps13-ce1-blr",
+        "clab-node-name": "ce1-blr",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "ce1-che": {
+      "index": "1",
+      "shortname": "ce1-che",
+      "longname": "clab-ps13-ce1-che",
+      "fqdn": "ce1-che.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-che",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.30",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-che",
+        "clab-node-longname": "clab-ps13-ce1-che",
+        "clab-node-name": "ce1-che",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "ce1-del": {
+      "index": "2",
+      "shortname": "ce1-del",
+      "longname": "clab-ps13-ce1-del",
+      "fqdn": "ce1-del.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-del",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.40",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-del",
+        "clab-node-longname": "clab-ps13-ce1-del",
+        "clab-node-name": "ce1-del",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "ce1-mum": {
+      "index": "3",
+      "shortname": "ce1-mum",
+      "longname": "clab-ps13-ce1-mum",
+      "fqdn": "ce1-mum.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-mum",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.20",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/ce1-mum",
+        "clab-node-longname": "clab-ps13-ce1-mum",
+        "clab-node-name": "ce1-mum",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "p1": {
+      "index": "4",
+      "shortname": "p1",
+      "longname": "clab-ps13-p1",
+      "fqdn": "p1.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/p1",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.12",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/p1",
+        "clab-node-longname": "clab-ps13-p1",
+        "clab-node-name": "p1",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "p2": {
+      "index": "5",
+      "shortname": "p2",
+      "longname": "clab-ps13-p2",
+      "fqdn": "p2.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/p2",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.22",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/p2",
+        "clab-node-longname": "clab-ps13-p2",
+        "clab-node-name": "p2",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "pe1-blr": {
+      "index": "6",
+      "shortname": "pe1-blr",
+      "longname": "clab-ps13-pe1-blr",
+      "fqdn": "pe1-blr.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-blr",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.11",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-blr",
+        "clab-node-longname": "clab-ps13-pe1-blr",
+        "clab-node-name": "pe1-blr",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "pe1-che": {
+      "index": "7",
+      "shortname": "pe1-che",
+      "longname": "clab-ps13-pe1-che",
+      "fqdn": "pe1-che.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-che",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.31",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-che",
+        "clab-node-longname": "clab-ps13-pe1-che",
+        "clab-node-name": "pe1-che",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "pe1-del": {
+      "index": "8",
+      "shortname": "pe1-del",
+      "longname": "clab-ps13-pe1-del",
+      "fqdn": "pe1-del.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-del",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.41",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-del",
+        "clab-node-longname": "clab-ps13-pe1-del",
+        "clab-node-name": "pe1-del",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "pe1-mum": {
+      "index": "9",
+      "shortname": "pe1-mum",
+      "longname": "clab-ps13-pe1-mum",
+      "fqdn": "pe1-mum.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-mum",
+      "kind": "linux",
+      "image": "frrouting/frr:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.21",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/pe1-mum",
+        "clab-node-longname": "clab-ps13-pe1-mum",
+        "clab-node-name": "pe1-mum",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    },
+    "trex": {
+      "index": "10",
+      "shortname": "trex",
+      "longname": "clab-ps13-trex",
+      "fqdn": "trex.ps13.io",
+      "group": "",
+      "labdir": "/home/ego/Documents/ISRO2026/clab-ps13/trex",
+      "kind": "linux",
+      "image": "trexcisco/trex:latest",
+      "mgmt-net": "",
+      "mgmt-intf": "",
+      "mgmt-ipv4-address": "172.20.0.100",
+      "mgmt-ipv4-prefix-length": 24,
+      "mgmt-ipv6-address": "",
+      "mgmt-ipv6-prefix-length": 0,
+      "mac-address": "",
+      "labels": {
+        "clab-git-branch": "main",
+        "clab-git-hash": "8039307",
+        "clab-mgmt-net-bridge": "br-36d5add6b77d",
+        "clab-node-group": "",
+        "clab-node-kind": "linux",
+        "clab-node-lab-dir": "/home/ego/Documents/ISRO2026/clab-ps13/trex",
+        "clab-node-longname": "clab-ps13-trex",
+        "clab-node-name": "trex",
+        "clab-node-type": "",
+        "clab-owner": "ego",
+        "clab-topo-file": "/home/ego/Documents/ISRO2026/topology.clab.yml",
+        "containerlab": "ps13"
+      },
+      "port-bindings": [
+      ]
+    }
+  },
+  "links": [
+    {
+      "endpoints": {
+        "a": {
+          "node": "p1",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:02:32:7e",
+          "peer": "z"
+        },
+        "z": {
+          "node": "p2",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:46:89:64",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "p1",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:5b:0b:34",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-che",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:81:a2:63",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "p1",
+          "interface": "eth3",
+          "mac": "aa:c1:ab:f9:8b:75",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-del",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:ec:69:c5",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "p2",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:4a:fc:4a",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-che",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:92:6e:91",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "pe1-blr",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:40:83:bf",
+          "peer": "z"
+        },
+        "z": {
+          "node": "p1",
+          "interface": "eth4",
+          "mac": "aa:c1:ab:63:79:44",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "pe1-mum",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:c7:e7:fc",
+          "peer": "z"
+        },
+        "z": {
+          "node": "p2",
+          "interface": "eth3",
+          "mac": "aa:c1:ab:8d:71:d7",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "ce1-blr",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:ab:f0:1d",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-blr",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:57:d3:56",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "ce1-mum",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:4c:15:82",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-mum",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:e9:97:63",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "ce1-che",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:5e:da:08",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-che",
+          "interface": "eth3",
+          "mac": "aa:c1:ab:32:c0:1a",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "ce1-del",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:63:51:12",
+          "peer": "z"
+        },
+        "z": {
+          "node": "pe1-del",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:b5:12:87",
+          "peer": "a"
+        }
+      }
+    },
+    {
+      "endpoints": {
+        "a": {
+          "node": "trex",
+          "interface": "eth1",
+          "mac": "aa:c1:ab:0f:08:b1",
+          "peer": "z"
+        },
+        "z": {
+          "node": "ce1-blr",
+          "interface": "eth2",
+          "mac": "aa:c1:ab:b8:d9:3c",
+          "peer": "a"
+        }
+      }
+    }
+  ]
+}

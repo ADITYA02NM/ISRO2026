@@ -1,0 +1,74 @@
+# Prometheus Alert Rules — PS13 Network Anomaly Detection
+# These rules fire when telemetry metrics cross thresholds.
+# Alerts are consumed by the NOC copilot (Phase 5).
+
+groups:
+  - name: ps13-network
+    interval: 15s
+    rules:
+
+      # ── BGP Session Down ──────────────────────────────
+      - alert: BGPSessionDown
+        expr: |
+          absent(bgp_summary{state="Established"})
+          or
+          (bgp_summary{state!="Established"} > 0)
+        for: 30s
+        labels:
+          severity: critical
+          phase: "network"
+        annotations:
+          summary: "BGP session down on {{ $labels.source }}"
+          description: "BGP session on {{ $labels.source }} is not in Established state."
+
+      # ── OSPF Neighbor Lost ────────────────────────────
+      - alert: OSPFNeighborDown
+        expr: |
+          absent(ospf_neighbors{state="Full"})
+          or
+          (ospf_neighbors{state!="Full"} > 0)
+        for: 40s
+        labels:
+          severity: critical
+          phase: "network"
+        annotations:
+          summary: "OSPF neighbor down on {{ $labels.source }}"
+          description: "OSPF adjacency on {{ $labels.source }} is not Full."
+
+      # ── MPLS LDP Neighbor Lost ────────────────────────
+      - alert: LDPNeighborDown
+        expr: |
+          absent(ldp_neighbors{state="Operational"})
+          or
+          (ldp_neighbors{state!="Operational"} > 0)
+        for: 40s
+        labels:
+          severity: critical
+          phase: "network"
+        annotations:
+          summary: "LDP neighbor down on {{ $labels.source }}"
+          description: "LDP session on {{ $labels.source }} is not Operational."
+
+      # ── Container Down ────────────────────────────────
+      - alert: ContainerDown
+        expr: |
+          absent(container_health{status=~"Up.*"})
+        for: 30s
+        labels:
+          severity: critical
+          phase: "infrastructure"
+        annotations:
+          summary: "Container {{ $labels.name }} is down"
+          description: "Container {{ $labels.name }} is not reporting Up status."
+
+      # ── High Route Flapping ───────────────────────────
+      - alert: HighRouteFlapping
+        expr: |
+          rate(route_summary{route_type="bgp"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          phase: "network"
+        annotations:
+          summary: "High route churn on {{ $labels.source }}"
+          description: "More than 10 route changes per minute on {{ $labels.source }}."

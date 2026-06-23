@@ -1,0 +1,36 @@
+# Filebeat Configuration — PS13 Log Collection
+# Ships FRR container logs to Elasticsearch
+
+filebeat.inputs:
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      - drop_event:
+          when:
+            not:
+              or:
+                - contains:
+                    container.name: "clab-ps13"
+      - decode_json_fields:
+          fields: ["message"]
+          target: "frr_log"
+
+# Output to Elasticsearch
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "ps13-logs-%{+yyyy.MM.dd}"
+  pipeline: "ps13-frr-logs"
+
+# Optional: output to Kafka as well
+# output.kafka:
+#   hosts: ["kafka:9092"]
+#   topic: "ps13-logs"
+#   codec.json:
+#     pretty: false
+
+logging.level: info
+logging.to_stderr: true

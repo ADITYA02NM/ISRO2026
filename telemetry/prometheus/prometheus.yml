@@ -1,0 +1,41 @@
+# Prometheus Configuration — PS13 Telemetry
+# Scrapes Telegraf, container metrics, and exposes alert rules
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ps13-network'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # Add alertmanager when deployed
+
+# Rule files
+rule_files:
+  - "alert_rules.yml"
+
+scrape_configs:
+  # ── Telegraf (primary telemetry source) ────────────────
+  - job_name: 'telegraf'
+    static_configs:
+      - targets: ['telegraf:9273']
+        labels:
+          collector: 'telegraf'
+
+  # ── Docker daemon (container health) ───────────────────
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-exporter:9323']
+        labels:
+          collector: 'docker'
+
+  # ── Prometheus itself ─────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          collector: 'prometheus'

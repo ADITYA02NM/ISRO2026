@@ -1,0 +1,56 @@
+---
+ce1-blr:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.10
+ce1-che:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.30
+ce1-del:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.40
+ce1-mum:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.20
+p1:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.12
+p2:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.22
+pe1-blr:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.11
+pe1-che:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.31
+pe1-del:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.41
+pe1-mum:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.21
+trex:
+    username: 
+    password: 
+    platform: linux
+    hostname: 172.20.0.100

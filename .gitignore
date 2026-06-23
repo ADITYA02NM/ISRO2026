@@ -1,6 +1,9 @@
 # === SR.md — GitHub Personal Access Token ===
 SR.md
 
+# === Containerlab TLS (self-generated test certs) ===
+clab-ps13/.tls/
+
 # === Backend ===
 backend/__pycache__/
 backend/venv/

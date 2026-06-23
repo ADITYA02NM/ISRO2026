@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS13 NOC Copilot — Space Network Operations</title>
+<script src="static/js/three.min.js"></script>
+<script src="static/js/anime.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   ISRO Space Theme — PS13 NOC Copilot Dashboard
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --space-bg: #0a0e1a;
+  --space-mid: #111827;
+  --space-light: #1a1a2e;
+  --isro-orange: #FF6B35;
+  --isro-blue: #4FC3F7;
+  --isro-teal: #00E5FF;
+  --isro-purple: #7C4DFF;
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --border-glow: rgba(79, 195, 247, 0.2);
+  --card-bg: rgba(17, 24, 39, 0.85);
+  --card-border: rgba(79, 195, 247, 0.15);
+  --alert-critical: #FF1744;
+  --alert-warning: #FF9100;
+  --alert-info: #4FC3F7;
+  --alert-ok: #00E676;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--space-bg);
+  color: var(--text-primary);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ── Starfield (CSS layer) ──────────────────────────────────── */
+#starfield {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Three.js container ─────────────────────────────────────── */
+#three-container {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1;
+  opacity: 0;
+}
+
+/* ── Top Header Bar ─────────────────────────────────────────── */
+.header-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: linear-gradient(180deg, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0.7) 80%, transparent 100%);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--card-border);
+  opacity: 0;
+}
+
+.header-bar .logo-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-bar .logo-icon {
+  width: 32px; height: 32px;
+  background: radial-gradient(circle, var(--isro-orange), #D84315);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: bold; color: white;
+  box-shadow: 0 0 20px rgba(255,107,53,0.4);
+}
+
+.header-bar h1 {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--isro-orange), var(--isro-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 1px;
+}
+
+.header-bar .subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  -webkit-text-fill-color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.header-bar .status-area {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.status-indicator {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-dot.online { background: var(--alert-ok); box-shadow: 0 0 8px var(--alert-ok); }
+.status-dot.offline { background: var(--alert-critical); box-shadow: 0 0 8px var(--alert-critical); }
+.status-dot.partial { background: var(--alert-warning); box-shadow: 0 0 8px var(--alert-warning); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+#clock {
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+/* ── Right Panel (T2: Alerts + AI Chat) ──────────────────── */
+.right-panel {
+  position: fixed;
+  top: 56px; right: 0;
+  width: 380px;
+  height: calc(100% - 56px - 64px); /* header + trigger */
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(17,24,39,0.9) 0%, rgba(10,14,26,0.85) 100%);
+  border-left: 1px solid var(--card-border);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+}
+
+/* Tab buttons */
+.panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.panel-tab {
+  flex: 1;
+  padding: 10px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+}
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab.active {
+  color: var(--isro-blue);
+  background: rgba(79,195,247,0.05);
+}
+.panel-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--isro-blue), transparent);
+}
+.panel-tab .badge {
+  display: inline-block;
+  background: var(--alert-critical);
+  color: white;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 4px;
+  vertical-align: top;
+}
+
+/* Tab content panels */
+.tab-content {
+  display: none;
+  flex: 1;
+  overflow: hidden;
+  flex-direction: column;
+}
+.tab-content.active { display: flex; }
+
+/* ── Alert Feed ──────────────────────────────────────────── */
+.alert-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--space-light) transparent;
+}
+.alert-feed::-webkit-scrollbar { width: 4px; }
+.alert-feed::-webkit-scrollbar-track { background: transparent; }
+.alert-feed::-webkit-scrollbar-thumb { background: var(--space-light); border-radius: 4px; }
+
+.alert-item {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.02);
+  transition: all 0.3s;
+  animation: alert-slide 0.4s ease-out;
+  cursor: pointer;
+}
+.alert-item:hover { background: rgba(255,255,255,0.05); border-color: rgba(79,195,247,0.3); }
+@keyframes alert-slide {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.alert-item .alert-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 4px;
+}
+.alert-item .alert-title {
+  font-size: 13px; font-weight: 600;
+}
+.alert-item .alert-time {
+  font-size: 10px; color: var(--text-muted);
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+.alert-item .alert-desc {
+  font-size: 11px; color: var(--text-secondary);
+  line-height: 1.4;
+}
+.alert-item .alert-meta {
+  display: flex; gap: 8px; margin-top: 6px;
+  flex-wrap: wrap;
+}
+.alert-item .alert-tag {
+  font-size: 9px; padding: 2px 8px; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.alert-tag.critical { background: rgba(255,23,68,0.15); color: var(--alert-critical); border: 1px solid rgba(255,23,68,0.3); }
+.alert-tag.warning { background: rgba(255,145,0,0.15); color: var(--alert-warning); border: 1px solid rgba(255,145,0,0.3); }
+.alert-tag.info { background: rgba(79,195,247,0.15); color: var(--alert-info); border: 1px solid rgba(79,195,247,0.3); }
+.alert-tag.ok { background: rgba(0,230,118,0.15); color: var(--alert-ok); border: 1px solid rgba(0,230,118,0.3); }
+
+/* ── AI Chat ──────────────────────────────────────────────── */
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--space-light) transparent;
+}
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--space-light); border-radius: 4px; }
+
+.chat-msg {
+  margin-bottom: 10px;
+  animation: msg-slide 0.3s ease-out;
+}
+@keyframes msg-slide {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.chat-msg.user { text-align: right; }
+.chat-msg .bubble {
+  display: inline-block;
+  max-width: 85%;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+}
+.chat-msg.user .bubble {
+  background: linear-gradient(135deg, var(--isro-orange), #D84315);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg.assistant .bubble {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg.assistant .bubble.typing {
+  min-width: 60px;
+}
+.chat-msg .bubble .msg-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.5;
+  margin-bottom: 4px;
+}
+
+.chat-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--card-border);
+  flex-shrink: 0;
+}
+.chat-input-area input {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.chat-input-area input:focus {
+  border-color: var(--isro-blue);
+  box-shadow: 0 0 12px rgba(79,195,247,0.15);
+}
+.chat-input-area input::placeholder { color: var(--text-muted); }
+.chat-input-area button {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--isro-orange), #D84315);
+  color: white;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.chat-input-area button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 16px rgba(255,107,53,0.3);
+}
+.chat-input-area button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.typing-dots span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: typing 1.4s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ── Bottom T1: Trigger Panel ────────────────────────────── */
+.trigger-panel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 64px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px;
+  background: linear-gradient(0deg, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0.7) 80%, transparent 100%);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--card-border);
+  opacity: 0;
+}
+
+.trigger-panel .label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.trigger-panel select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.trigger-panel select:focus {
+  border-color: var(--isro-blue);
+}
+.trigger-panel select option {
+  background: var(--space-mid);
+  color: var(--text-primary);
+}
+
+.trigger-panel .trigger-btn {
+  padding: 6px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.trigger-btn.primary {
+  background: linear-gradient(135deg, var(--isro-orange), #D84315);
+  color: white;
+}
+.trigger-btn.primary:hover {
+  box-shadow: 0 0 20px rgba(255,107,53,0.3);
+  transform: translateY(-1px);
+}
+.trigger-btn.secondary {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+}
+.trigger-btn.secondary:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: var(--isro-blue);
+}
+.trigger-btn:active { transform: scale(0.96); }
+.trigger-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ── 3D Scene Overlay ─────────────────────────────────────── */
+#scene-tooltip {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  width: 220px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+#scene-tooltip.visible { opacity: 1; }
+#scene-tooltip .tt-title {
+  font-size: 13px; font-weight: 700;
+  margin-bottom: 4px;
+}
+#scene-tooltip .tt-sub {
+  font-size: 10px; color: var(--text-muted);
+  margin-bottom: 6px;
+}
+#scene-tooltip .tt-row {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-secondary);
+  padding: 2px 0;
+}
+#scene-tooltip .tt-row .tt-val {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+#scene-tooltip .tt-divider {
+  height: 1px;
+  background: var(--card-border);
+  margin: 6px 0;
+}
+
+/* ── Anime.js animation classes ──────────────────────────── */
+.anime-hidden {
+  opacity: 0;
+}
+.anime-hidden-right {
+  opacity: 0;
+  transform: translateX(40px);
+}
+.anime-hidden-left {
+  opacity: 0;
+  transform: translateX(-40px);
+}
+.anime-hidden-up {
+  opacity: 0;
+  transform: translateY(30px);
+}
+.anime-hidden-down {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+.anime-hidden-scale {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+/* New alert pulse highlight */
+@keyframes alert-pulse-highlight {
+  0% { background: rgba(255,107,53,0.15); }
+  100% { background: transparent; }
+}
+.alert-item.new-alert {
+  animation: alert-pulse-highlight 1.5s ease-out forwards;
+}
+
+/* Trigger button ripple */
+@keyframes trigger-ripple {
+  0% { box-shadow: 0 0 0 0 rgba(255,107,53,0.4); }
+  100% { box-shadow: 0 0 0 20px rgba(255,107,53,0); }
+}
+.trigger-btn.primary.ripple {
+  animation: trigger-ripple 0.6s ease-out;
+}
+
+/* Chat typing glow */
+@keyframes chat-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255,107,53,0.2); }
+  50% { box-shadow: 0 0 16px rgba(255,107,53,0.5); }
+}
+.chat-input-area input:focus {
+  animation: chat-glow 1.5s ease-in-out infinite;
+}
+
+/* ── Empty states ─────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 20px;
+}
+.empty-state .empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+.empty-state .empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+.empty-state .empty-desc {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .right-panel {
+    width: 320px;
+  }
+}
+@media (max-width: 700px) {
+  .right-panel {
+    width: 100%;
+    top: auto;
+    bottom: 64px;
+    height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--card-border);
+  }
+  .trigger-panel {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  .trigger-panel .label { display: none; }
+  .trigger-panel select { flex: 1; min-width: 80px; font-size: 11px; }
+  .header-bar .subtitle { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ Starfield Canvas Background ═══ -->
+<canvas id="starfield"></canvas>
+
+<!-- ═══ Three.js Container ═══ -->
+<div id="three-container"></div>
+
+<!-- ═══ Scene Tooltip ═══ -->
+<div id="scene-tooltip">
+  <div class="tt-title" id="tt-title">-</div>
+  <div class="tt-sub" id="tt-sub">-</div>
+  <div class="tt-divider"></div>
+  <div class="tt-row"><span>Status</span><span class="tt-val" id="tt-status">-</span></div>
+  <div class="tt-row"><span>Latency</span><span class="tt-val" id="tt-latency">-</span></div>
+  <div class="tt-row"><span>Faults (24h)</span><span class="tt-val" id="tt-faults">-</span></div>
+</div>
+
+<!-- ═══ Top Header ═══ -->
+<header class="header-bar">
+  <div class="logo-area">
+    <div class="logo-icon">🛰</div>
+    <div>
+      <h1>PS13 NOC COPILOT</h1>
+      <div class="subtitle">ML-Predictive SD-WAN · 4-Site MPLS · ISRO</div>
+    </div>
+  </div>
+  <div class="status-area">
+    <div class="status-indicator">
+      <span class="status-dot online" id="server-dot"></span>
+      <span id="server-status">Connecting...</span>
+    </div>
+    <div class="status-indicator">
+      <span class="status-dot" id="models-dot" style="background:var(--text-muted)"></span>
+      <span id="models-status">Models: ?</span>
+    </div>
+    <span id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- ═══ Right Panel (T2: Alerts + AI Chat) ═══ -->
+<div class="right-panel" id="right-panel">
+  <div class="panel-tabs">
+    <button class="panel-tab active" data-tab="alerts">
+      ⚡ Alerts <span class="badge" id="alert-count">0</span>
+    </button>
+    <button class="panel-tab" data-tab="chat">
+      🤖 AI Chat
+    </button>
+    <button class="panel-tab" data-tab="analytics">
+      📊 Analytics
+    </button>
+  </div>
+
+  <!-- Alerts Tab -->
+  <div class="tab-content active" id="tab-alerts">
+    <div class="alert-feed" id="alert-feed">
+      <div class="empty-state">
+        <div class="empty-icon">🛡</div>
+        <div class="empty-title">All Systems Nominal</div>
+        <div class="empty-desc">No active alerts. Trigger events from the T1 panel below.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Tab -->
+  <div class="tab-content" id="tab-chat">
+    <div class="chat-container">
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg assistant">
+          <div class="bubble">
+            <div class="msg-label">NOC Copilot</div>
+            👋 I'm your NOC AI assistant. Ask me anything about the network — faults, forecasts, or recommended actions.
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Ask about network status..." />
+        <button id="chat-send" title="Send">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Tab -->
+  <div class="tab-content" id="tab-analytics">
+    <div class="empty-state">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">Analytics Dashboard</div>
+      <div class="empty-desc">
+        <div style="margin-bottom:8px;text-align:left;font-size:11px;color:var(--text-secondary)">
+          <strong style="color:var(--text-primary)">Model Ensemble Status</strong>
+        </div>
+        <div id="analytics-models" style="text-align:left;width:100%">
+          Loading...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Bottom T1: Trigger Panel ═══ -->
+<div class="trigger-panel">
+  <span class="label">⚡ Trigger</span>
+  <select id="t-site">
+    <option value="BLR">BLR (Bangalore)</option>
+    <option value="MUM">MUM (Mumbai)</option>
+    <option value="CHE">CHE (Chennai)</option>
+    <option value="DEL">DEL (Delhi)</option>
+  </select>
+  <select id="t-device">
+    <option value="PE1">PE1 (Provider Edge)</option>
+    <option value="PE2">PE2 (Provider Edge)</option>
+    <option value="CE1">CE1 (Customer Edge)</option>
+    <option value="P1">P1 (Core Router)</option>
+  </select>
+  <select id="t-fault">
+    <option value="latency">High Latency</option>
+    <option value="packet_loss">Packet Loss</option>
+    <option value="congestion">Bandwidth Congestion</option>
+    <option value="bgp_flap">BGP Flap</option>
+    <option value="ospf_issue">OSPF Issue</option>
+    <option value="link_down">Link Down</option>
+  </select>
+  <button class="trigger-btn primary" id="t-trigger">▶ Trigger Event</button>
+  <button class="trigger-btn secondary" id="t-random">🎲 Random Burst</button>
+  <span style="flex:1"></span>
+  <span style="font-size:11px;color:var(--text-muted)" id="trigger-result"></span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// PS13 NOC Copilot — Dashboard Controller
+// ═══════════════════════════════════════════════════════════════════════
+
+(function() {
+'use strict';
+
+const API_BASE = 'http://localhost:8000';
+let alertCount = 0;
+let healthData = null;
+
+// ── Clock ───────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-IN', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Starfield ───────────────────────────────────────────────
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function initStarfield() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const count = Math.floor((canvas.width * canvas.height) / 2000);
+  stars = [];
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5 + 0.3,
+      a: Math.random(),
+      s: Math.random() * 0.02 + 0.005,
+      dir: Math.random() > 0.5 ? 1 : -1
+    });
+  }
+}
+function drawStarfield() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const s of stars) {
+    s.a += s.s * s.dir;
+    if (s.a > 1 || s.a < 0.1) s.dir *= -1;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${s.a})`;
+    ctx.fill();
+  }
+  requestAnimationFrame(drawStarfield);
+}
+window.addEventListener('resize', () => {
+  initStarfield();
+});
+initStarfield();
+drawStarfield();
+
+// Run load-in animations after DOM stabilizes
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => animeEngine.loadIn(), 100);
+});
+// Also run if DOM already loaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(() => animeEngine.loadIn(), 200);
+}
+
+// ── Anime.js Animation Engine ──────────────────────────────
+const animeEngine = {
+  // Animate element into view with staggered children
+  staggerIn(parentSelector, options = {}) {
+    const items = document.querySelectorAll(parentSelector);
+    if (items.length === 0) return;
+    anime({
+      targets: items,
+      opacity: [0, 1],
+      translateY: [30, 0],
+      translateX: [40, 0],
+      scale: [0.95, 1],
+      duration: options.duration || 600,
+      delay: anime.stagger(options.stagger || 80, { from: 'first' }),
+      easing: options.easing || 'easeOutCubic',
+      ...options
+    });
+  },
+
+  // Page load: orchestrated entrance sequence
+  loadIn() {
+    const tl = anime.timeline({ easing: 'easeOutCubic' });
+    // Header slides down
+    tl.add({
+      targets: '.header-bar',
+      opacity: [0, 1],
+      translateY: [-30, 0],
+      duration: 500,
+    })
+    // Right panel slides in from right
+    .add({
+      targets: '.right-panel',
+      opacity: [0, 1],
+      translateX: [60, 0],
+      duration: 600,
+    }, '-=300')
+    // Trigger panel slides up from bottom
+    .add({
+      targets: '.trigger-panel',
+      opacity: [0, 1],
+      translateY: [30, 0],
+      duration: 500,
+    }, '-=400')
+    // Three.js container fades in last
+    .add({
+      targets: '#three-container',
+      opacity: [0, 1],
+      duration: 800,
+    }, '-=300');
+  },
+
+  // Animate a new alert appearing
+  animateAlert(el, index = 0) {
+    anime({
+      targets: el,
+      opacity: [0, 1],
+      translateX: [60, 0],
+      scale: [0.95, 1],
+      duration: 500,
+      delay: index * 60,
+      easing: 'easeOutElastic(1, 0.5)',
+    });
+    // Highlight pulse
+    el.classList.add('new-alert');
+  },
+
+  // Animate chat message appearing
+  animateChatMessage(el, isUser = false) {
+    const fromX = isUser ? 40 : -40;
+    anime({
+      targets: el,
+      opacity: [0, 1],
+      translateX: [fromX, 0],
+      translateY: [10, 0],
+      duration: 400,
+      easing: 'easeOutCubic',
+    });
+  },
+
+  // Particle burst effect at a position
+  particleBurst(x, y, color = '#FF6B35') {
+    const container = document.body;
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      const size = 4 + Math.random() * 6;
+      p.style.cssText = `
+        position: fixed; left: ${x}px; top: ${y}px;
+        width: ${size}px; height: ${size}px;
+        border-radius: 50%;
+        background: ${color};
+        pointer-events: none;
+        z-index: 999;
+        box-shadow: 0 0 6px ${color};
+      `;
+      container.appendChild(p);
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const dist = 40 + Math.random() * 60;
+      anime({
+        targets: p,
+        translateX: Math.cos(angle) * dist,
+        translateY: Math.sin(angle) * dist,
+        opacity: [1, 0],
+        scale: [1, 0.2],
+        duration: 600 + Math.random() * 400,
+        easing: 'easeOutCubic',
+        complete: () => p.remove()
+      });
+    }
+  },
+
+  // Button glow pulse on trigger
+  triggerButtonPulse(btn) {
+    anime({
+      targets: btn,
+      scale: [1, 1.12, 1],
+      boxShadow: [
+        '0 0 0 rgba(255,107,53,0)',
+        '0 0 30px rgba(255,107,53,0.4)',
+        '0 0 0 rgba(255,107,53,0)'
+      ],
+      duration: 500,
+      easing: 'easeOutCirc',
+    });
+    // Ripple
+    btn.classList.remove('ripple');
+    void btn.offsetWidth;
+    btn.classList.add('ripple');
+  },
+
+  // Tab content transition
+  switchTab(newContent, oldContent) {
+    if (oldContent) {
+      anime({
+        targets: oldContent,
+        opacity: [1, 0],
+        translateY: [0, -10],
+        duration: 200,
+        easing: 'easeOutCubic',
+        complete: () => {
+          oldContent.classList.remove('active');
+          oldContent.style.opacity = '';
+          oldContent.style.transform = '';
+          newContent.classList.add('active');
+          anime({
+            targets: newContent,
+            opacity: [0, 1],
+            translateY: [10, 0],
+            duration: 300,
+            easing: 'easeOutCubic'
+          });
+        }
+      });
+    } else {
+      newContent.classList.add('active');
+      anime({
+        targets: newContent,
+        opacity: [0, 1],
+        translateY: [10, 0],
+        duration: 300,
+        easing: 'easeOutCubic'
+      });
+    }
+  },
+
+  // Continuous subtle pulse on trigger button
+  startTriggerPulse(btn) {
+    anime({
+      targets: btn,
+      boxShadow: [
+        '0 0 8px rgba(255,107,53,0.2)',
+        '0 0 20px rgba(255,107,53,0.4)',
+        '0 0 8px rgba(255,107,53,0.2)'
+      ],
+      duration: 2000,
+      loop: true,
+      easing: 'easeInOutSine',
+    });
+  },
+
+  // Status change animation
+  animateStatusDot(dot) {
+    anime({
+      targets: dot,
+      scale: [1.5, 1],
+      duration: 300,
+      easing: 'easeOutCirc'
+    });
+  }
+};
+
+// ── Three.js Scene ─────────────────────────────────────────
+const container = document.getElementById('three-container');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+camera.position.set(0, 8, 16);
+camera.lookAt(0, 0, 0);
+
+// Lights
+const ambient = new THREE.AmbientLight(0x404060);
+scene.add(ambient);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
+const pointLight = new THREE.PointLight(0x4FC3F7, 0.8, 30);
+pointLight.position.set(0, 5, 5);
+scene.add(pointLight);
+
+// ── Sites Data ───────────────────────────────────────────────
+const SITES = [
+  { id: 'BLR', name: 'Bangalore', pos: new THREE.Vector3(4.5, 0, 4.5), color: 0xFF6B35, devices: [
+    { id: 'BLR-PE1', role: 'PE' }, { id: 'BLR-PE2', role: 'PE' },
+    { id: 'BLR-CE1', role: 'CE' }, { id: 'BLR-P1', role: 'P' }
+  ]},
+  { id: 'MUM', name: 'Mumbai', pos: new THREE.Vector3(-4.5, 0, 4.5), color: 0x4FC3F7, devices: [
+    { id: 'MUM-PE1', role: 'PE' }, { id: 'MUM-PE2', role: 'PE' },
+    { id: 'MUM-CE1', role: 'CE' }, { id: 'MUM-P1', role: 'P' }
+  ]},
+  { id: 'CHE', name: 'Chennai', pos: new THREE.Vector3(-4.5, 0, -4.5), color: 0x00E5FF, devices: [
+    { id: 'CHE-PE1', role: 'PE' }, { id: 'CHE-PE2', role: 'PE' },
+    { id: 'CHE-CE1', role: 'CE' }, { id: 'CHE-CE2', role: 'CE' }
+  ]},
+  { id: 'DEL', name: 'Delhi', pos: new THREE.Vector3(4.5, 0, -4.5), color: 0x7C4DFF, devices: [
+    { id: 'DEL-PE1', role: 'PE' }, { id: 'DEL-PE2', role: 'PE' },
+    { id: 'DEL-CE1', role: 'CE' }, { id: 'DEL-P1', role: 'P' }
+  ]}
+];
+
+const clickableObjects = [];
+const siteMeshes = {};
+const deviceMeshes = [];
+
+// ── Central Globe ───────────────────────────────────────────
+const globeGeo = new THREE.SphereGeometry(1.1, 48, 48);
+const globeMat = new THREE.MeshPhongMaterial({
+  color: 0x1a1a3e,
+  emissive: 0x4FC3F7,
+  emissiveIntensity: 0.15,
+  transparent: true,
+  opacity: 0.9,
+});
+const globe = new THREE.Mesh(globeGeo, globeMat);
+scene.add(globe);
+clickableObjects.push(globe);
+
+// Wireframe overlay
+const wireGeo = new THREE.SphereGeometry(1.15, 24, 24);
+const wireMat = new THREE.MeshBasicMaterial({
+  color: 0x4FC3F7,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.15
+});
+const wireGlobe = new THREE.Mesh(wireGeo, wireMat);
+scene.add(wireGlobe);
+
+// Glow ring
+const ringGeo = new THREE.TorusGeometry(1.5, 0.02, 16, 64);
+const ringMat = new THREE.MeshBasicMaterial({
+  color: 0x4FC3F7,
+  transparent: true,
+  opacity: 0.3
+});
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.rotation.x = Math.PI / 2;
+scene.add(ring);
+
+// Particle ring
+const particleCount = 200;
+const particleGeo = new THREE.BufferGeometry();
+const positions = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount; i++) {
+  const theta = (i / particleCount) * Math.PI * 2;
+  const r = 1.8 + Math.random() * 0.3;
+  positions[i*3] = Math.cos(theta) * r;
+  positions[i*3+1] = (Math.random() - 0.5) * 0.3;
+  positions[i*3+2] = Math.sin(theta) * r;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+const particleMat = new THREE.PointsMaterial({
+  color: 0x4FC3F7,
+  size: 0.03,
+  transparent: true,
+  opacity: 0.6
+});
+const particleRing = new THREE.Points(particleGeo, particleMat);
+scene.add(particleRing);
+
+// ── Build Sites ─────────────────────────────────────────────
+function createOrbitRing(radius, color, yOffset) {
+  const segments = 64;
+  const g = new THREE.BufferGeometry();
+  const p = new Float32Array((segments + 1) * 3);
+  for (let i = 0; i <= segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    p[i*3] = Math.cos(a) * radius;
+    p[i*3+1] = yOffset || 0;
+    p[i*3+2] = Math.sin(a) * radius;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.2 });
+  return new THREE.Line(g, m);
+}
+
+// Add orbital rings
+SITES.forEach(site => {
+  const r = Math.sqrt(site.pos.x**2 + site.pos.z**2);
+  const ring = createOrbitRing(r, site.color, 0);
+  scene.add(ring);
+});
+
+// Site planets
+SITES.forEach(site => {
+  const geo = new THREE.SphereGeometry(0.7, 32, 32);
+  const mat = new THREE.MeshPhongMaterial({
+    color: site.color,
+    emissive: site.color,
+    emissiveIntensity: 0.2,
+    specular: 0x444444,
+    shininess: 30
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(site.pos);
+  mesh.userData = { type: 'site', id: site.id, name: site.name, ...site };
+  scene.add(mesh);
+  clickableObjects.push(mesh);
+  siteMeshes[site.id] = mesh;
+
+  // Glow halo
+  const halo = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: (() => {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const cx = c.getContext('2d');
+        const gradient = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        const hex = '#' + site.color.toString(16).padStart(6, '0');
+        gradient.addColorStop(0, hex + '40');
+        gradient.addColorStop(1, hex + '00');
+        cx.fillStyle = gradient;
+        cx.fillRect(0, 0, 64, 64);
+        return new THREE.CanvasTexture(c);
+      })(),
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  halo.scale.set(3, 3, 1);
+  halo.position.copy(site.pos);
+  scene.add(halo);
+
+  // Site label sprite
+  const label = makeLabel(site.id, site.color);
+  label.position.set(site.pos.x, site.pos.y - 1.2, site.pos.z);
+  scene.add(label);
+
+  // Device nodes
+  site.devices.forEach((dev, di) => {
+    const angle = (di / site.devices.length) * Math.PI * 2;
+    const radius = 1.6;
+    const dGeo = new THREE.SphereGeometry(0.2, 16, 16);
+    const dMat = new THREE.MeshPhongMaterial({
+      color: 0x88BBDD,
+      emissive: 0x4FC3F7,
+      emissiveIntensity: 0.1
+    });
+    const dMesh = new THREE.Mesh(dGeo, dMat);
+    dMesh.position.set(
+      site.pos.x + Math.cos(angle) * radius,
+      Math.sin(angle * 2) * 0.3,
+      site.pos.z + Math.sin(angle) * radius
+    );
+    dMesh.userData = { type: 'device', id: dev.id, role: dev.role, site: site.id };
+    scene.add(dMesh);
+    clickableObjects.push(dMesh);
+    deviceMeshes.push(dMesh);
+  });
+});
+
+function makeLabel(text, color) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const cx = c.getContext('2d');
+  cx.fillStyle = 'transparent';
+  cx.fillRect(0, 0, 128, 64);
+  cx.textAlign = 'center';
+  cx.textBaseline = 'middle';
+  cx.font = 'bold 28px "Segoe UI", sans-serif';
+  const hex = '#' + color.toString(16).padStart(6, '0');
+  cx.fillStyle = hex;
+  cx.shadowColor = hex;
+  cx.shadowBlur = 10;
+  cx.fillText(text, 64, 36);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2, 1, 1);
+  return sprite;
+}
+
+// ── MPLS Connection Lines ───────────────────────────────────
+function createConnection(a, b, color) {
+  const points = [];
+  const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+  mid.y += 0.8 + Math.random() * 0.5;
+  const curve = new THREE.QuadraticBezierCurve3(a, mid, b);
+  const segments = 40;
+  for (let i = 0; i <= segments; i++) {
+    points.push(curve.getPoint(i / segments));
+  }
+  const g = new THREE.BufferGeometry().setFromPoints(points);
+  const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.15 });
+  return new THREE.Line(g, m);
+}
+
+// Full mesh between all sites
+for (let i = 0; i < SITES.length; i++) {
+  for (let j = i + 1; j < SITES.length; j++) {
+    const line = createConnection(SITES[i].pos, SITES[j].pos, 0x4FC3F7);
+    scene.add(line);
+  }
+}
+
+// ── Additional space particles ─────────────────────────────
+const spaceStars = new THREE.BufferGeometry();
+const starPos = new Float32Array(2000 * 3);
+for (let i = 0; i < 2000 * 3; i++) {
+  starPos[i] = (Math.random() - 0.5) * 200;
+}
+spaceStars.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat3d = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 0.08,
+  transparent: true,
+  opacity: 0.6
+});
+const starField3d = new THREE.Points(spaceStars, starMat3d);
+scene.add(starField3d);
+
+// ── Raycaster ───────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('scene-tooltip');
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(clickableObjects);
+
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    const data = obj.userData;
+    tooltip.classList.add('visible');
+    tooltip.style.left = (e.clientX + 16) + 'px';
+    tooltip.style.top = (e.clientY + 16) + 'px';
+
+    if (data.type === 'site') {
+      document.getElementById('tt-title').textContent = data.id + ' - ' + data.name;
+      document.getElementById('tt-sub').textContent = data.devices.length + ' devices · ' + data.devices.filter(d => d.role === 'PE').length + ' PE';
+      document.getElementById('tt-status').textContent = 'Online';
+      document.getElementById('tt-status').style.color = 'var(--alert-ok)';
+      document.getElementById('tt-latency').textContent = (Math.random() * 15 + 5).toFixed(1) + ' ms';
+      document.getElementById('tt-faults').textContent = Math.floor(Math.random() * 3) + ' events';
+    } else if (data.type === 'device') {
+      document.getElementById('tt-title').textContent = data.id;
+      document.getElementById('tt-sub').textContent = data.site + ' · ' + data.role;
+      const ok = Math.random() > 0.2;
+      document.getElementById('tt-status').textContent = ok ? 'Online' : 'Degraded';
+      document.getElementById('tt-status').style.color = ok ? 'var(--alert-ok)' : 'var(--alert-warning)';
+      document.getElementById('tt-latency').textContent = (Math.random() * 20 + 2).toFixed(1) + ' ms';
+      document.getElementById('tt-faults').textContent = ok ? '0 alerts' : Math.floor(Math.random() * 2 + 1) + ' events';
+    } else {
+      document.getElementById('tt-title').textContent = 'PS13 Core';
+      document.getElementById('tt-sub').textContent = 'MPLS SD-WAN Network';
+      document.getElementById('tt-status').textContent = 'Nominal';
+      document.getElementById('tt-status').style.color = 'var(--alert-ok)';
+      document.getElementById('tt-latency').textContent = '-';
+      document.getElementById('tt-faults').textContent = '-';
+    }
+    renderer.domElement.style.cursor = 'pointer';
+  } else {
+    tooltip.classList.remove('visible');
+    renderer.domElement.style.cursor = 'default';
+  }
+});
+
+// ── Orbit Controls (simple auto-orbit) ──────────────────────
+let orbitAngle = 0;
+const ORBIT_RADIUS = 16;
+
+// ── Animation Loop ──────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+
+  orbitAngle += 0.001;
+  // Camera orbits around center
+  const camX = Math.sin(orbitAngle) * ORBIT_RADIUS;
+  const camZ = Math.cos(orbitAngle) * ORBIT_RADIUS;
+  camera.position.x = camX;
+  camera.position.z = camZ;
+  camera.lookAt(0, 0, 0);
+
+  // Rotate globe
+  globe.rotation.y += 0.003;
+  wireGlobe.rotation.y += 0.003;
+  ring.rotation.z += 0.002;
+  particleRing.rotation.y += 0.002;
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── Responsive ──────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// T1: Trigger Panel Logic
+// ═══════════════════════════════════════════════════════════════════════
+
+function generateTelemetry(faultType) {
+  const base = {
+    cpu_util_pct: 45 + Math.random() * 15,
+    memory_util_pct: 55 + Math.random() * 15,
+    interface_bandwidth_util_pct: 40 + Math.random() * 20,
+    latency_ms: 10 + Math.random() * 10,
+    packet_loss_pct: Math.random() * 0.1,
+    jitter_ms: 2 + Math.random() * 3,
+    tcp_retransmits_pct: Math.random() * 0.5,
+    bgp_prefix_count: 150 + Math.floor(Math.random() * 50),
+    ospf_lsa_count: 80 + Math.floor(Math.random() * 20),
+    ldp_label_count: 45 + Math.floor(Math.random() * 15),
+    mpls_label_stack_depth: 2 + Math.floor(Math.random() * 2),
+    flow_count: 500 + Math.floor(Math.random() * 200)
+  };
+
+  switch(faultType) {
+    case 'latency':
+      base.latency_ms = 150 + Math.random() * 200;
+      base.jitter_ms = 20 + Math.random() * 30;
+      base.packet_loss_pct = 0.5 + Math.random() * 2;
+      break;
+    case 'packet_loss':
+      base.packet_loss_pct = 3 + Math.random() * 10;
+      base.tcp_retransmits_pct = 5 + Math.random() * 10;
+      base.latency_ms = 80 + Math.random() * 100;
+      break;
+    case 'congestion':
+      base.interface_bandwidth_util_pct = 88 + Math.random() * 11;
+      base.cpu_util_pct = 70 + Math.random() * 20;
+      base.memory_util_pct = 75 + Math.random() * 20;
+      base.tcp_retransmits_pct = 2 + Math.random() * 5;
+      break;
+    case 'bgp_flap':
+      base.bgp_prefix_count = 10 + Math.floor(Math.random() * 20);
+      base.cpu_util_pct = 60 + Math.random() * 20;
+      break;
+    case 'ospf_issue':
+      base.ospf_lsa_count = 200 + Math.floor(Math.random() * 100);
+      base.cpu_util_pct = 55 + Math.random() * 15;
+      break;
+    case 'link_down':
+      base.packet_loss_pct = 100;
+      base.latency_ms = 999;
+      base.interface_bandwidth_util_pct = 0;
+      break;
+  }
+
+  return base;
+}
+
+async function triggerEvent(site, device, faultType) {
+  document.getElementById('trigger-result').textContent = '⏳ Sending...';
+
+  const telemetry = generateTelemetry(faultType);
+  const payload = {
+    telemetry: {
+      ...telemetry,
+      site: site,
+      device_id: device,
+      device_role: device.includes('PE') ? 'PE' : device.includes('CE') ? 'CE' : 'P',
+      timestamp: new Date().toISOString()
+    },
+    include_llm: false
+  };
+
+  try {
+    const res = await fetch(API_BASE + '/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    document.getElementById('trigger-result').textContent =
+      `✅ ${(data.inference_time_ms || '?')}ms — ${data.fault_detection?.predicted_fault || 'ok'}`;
+
+    addAlert(data, site, device, faultType);
+    updateAnalytics();
+  } catch (err) {
+    document.getElementById('trigger-result').textContent = '❌ ' + err.message;
+    addAlert({
+      timestamp: new Date().toISOString(),
+      device_id: device,
+      site: site,
+      fault_detection: { predicted_fault: 'connection_error', confidence: 0 },
+      tti_estimate: { tti_hours: 0 }
+    }, site, device, faultType);
+  }
+}
+
+// Start subtle glow pulse on trigger button
+animeEngine.startTriggerPulse(document.getElementById('t-trigger'));
+
+document.getElementById('t-trigger').addEventListener('click', (e) => {
+  const site = document.getElementById('t-site').value;
+  const device = document.getElementById('t-device').value;
+  const fault = document.getElementById('t-fault').value;
+  // Animate button
+  animeEngine.triggerButtonPulse(e.currentTarget);
+  // Particle burst from button center
+  const rect = e.currentTarget.getBoundingClientRect();
+  animeEngine.particleBurst(rect.left + rect.width/2, rect.top + rect.height/2, '#FF6B35');
+  triggerEvent(site, device, fault);
+});
+
+document.getElementById('t-random').addEventListener('click', (e) => {
+  const sites = ['BLR', 'MUM', 'CHE', 'DEL'];
+  const devs = ['PE1', 'PE2', 'CE1', 'P1'];
+  const faults = ['latency', 'packet_loss', 'congestion', 'bgp_flap', 'ospf_issue', 'link_down'];
+  const site = sites[Math.floor(Math.random() * sites.length)];
+  const dev = devs[Math.floor(Math.random() * devs.length)];
+  const fault = faults[Math.floor(Math.random() * faults.length)];
+  document.getElementById('t-site').value = site;
+  document.getElementById('t-device').value = dev;
+  document.getElementById('t-fault').value = fault;
+  // Animate: particle burst + button pulse
+  const rect = e.currentTarget.getBoundingClientRect();
+  animeEngine.particleBurst(rect.left + rect.width/2, rect.top + rect.height/2, '#4FC3F7');
+  anime({
+    targets: e.currentTarget,
+    scale: [1, 1.08, 1],
+    duration: 400,
+    easing: 'easeOutCirc'
+  });
+  triggerEvent(site, dev, fault);
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// T2: Alert Feed
+// ═══════════════════════════════════════════════════════════════════════
+
+function addAlert(data, site, device, faultType) {
+  const feed = document.getElementById('alert-feed');
+  const empty = feed.querySelector('.empty-state');
+  if (empty) feed.innerHTML = '';
+
+  const fault = data.fault_detection?.predicted_fault || faultType || 'unknown';
+  const confidence = data.fault_detection?.confidence || 0;
+  const ts = data.timestamp || new Date().toISOString();
+  const time = new Date(ts).toLocaleTimeString('en-IN', { hour12: false });
+
+  const severity = fault === 'link_down' ? 'critical' :
+    fault === 'packet_loss' || fault === 'congestion' ? 'warning' : 'info';
+  const severityLabel = severity.toUpperCase();
+
+  const el = document.createElement('div');
+  el.className = 'alert-item';
+  el.innerHTML = `
+    <div class="alert-header">
+      <span class="alert-title">${fault.replace(/_/g, ' ').toUpperCase()}</span>
+      <span class="alert-time">${time}</span>
+    </div>
+    <div class="alert-desc">${device} @ ${site} — ${faultType ? faultDesc[faultType] : ''} (${(confidence * 100).toFixed(1)}% confidence)</div>
+    <div class="alert-meta">
+      <span class="alert-tag ${severity}">${severityLabel}</span>
+      <span class="alert-tag info">${site}</span>
+      <span class="alert-tag info">${device}</span>
+      ${data.tti_estimate?.tti_hours ? `<span class="alert-tag">TTI: ${data.tti_estimate.tti_hours.toFixed(1)}h</span>` : ''}
+    </div>
+  `;
+
+  feed.prepend(el);
+  // Animate with anime.js
+  animeEngine.animateAlert(el, feed.children.length);
+  alertCount++;
+  document.getElementById('alert-count').textContent = alertCount;
+}
+
+const faultDesc = {
+  latency: 'High network latency detected',
+  packet_loss: 'Packet loss exceeding threshold',
+  congestion: 'Interface bandwidth congestion',
+  bgp_flap: 'BGP session instability',
+  ospf_issue: 'OSPF routing anomaly',
+  link_down: 'Interface link down'
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// AI Chat
+// ═══════════════════════════════════════════════════════════════════════
+
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+const chatMessages = document.getElementById('chat-messages');
+
+chatSend.addEventListener('click', sendChatMessage);
+chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatMessage(); });
+
+async function sendChatMessage() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  chatInput.value = '';
+  chatSend.disabled = true;
+
+  // User message
+  const userMsg = document.createElement('div');
+  userMsg.className = 'chat-msg user';
+  userMsg.style.opacity = '0';
+  userMsg.innerHTML = `<div class="bubble">${escapeHtml(text)}</div>`;
+  chatMessages.appendChild(userMsg);
+  animeEngine.animateChatMessage(userMsg, true);
+
+  // Typing indicator
+  const typingMsg = document.createElement('div');
+  typingMsg.className = 'chat-msg assistant';
+  typingMsg.innerHTML = `<div class="bubble typing"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  chatMessages.appendChild(typingMsg);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  try {
+    const res = await fetch(API_BASE + '/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: text,
+        n_rag_results: 5
+      })
+    });
+    typingMsg.remove();
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const assistantMsg = document.createElement('div');
+    assistantMsg.className = 'chat-msg assistant';
+    assistantMsg.style.opacity = '0';
+    const answer = data.answer || 'No response from LLM.';
+    assistantMsg.innerHTML = `<div class="bubble"><div class="msg-label">NOC Copilot</div>${escapeHtml(answer)}</div>`;
+    chatMessages.appendChild(assistantMsg);
+    animeEngine.animateChatMessage(assistantMsg, false);
+  } catch (err) {
+    typingMsg.remove();
+    const errMsg = document.createElement('div');
+    errMsg.className = 'chat-msg assistant';
+    errMsg.style.opacity = '0';
+    errMsg.innerHTML = `<div class="bubble"><div class="msg-label">NOC Copilot</div>⚠️ Connection error: ${escapeHtml(err.message)}. Make sure the server is running.</div>`;
+    chatMessages.appendChild(errMsg);
+    animeEngine.animateChatMessage(errMsg, false);
+  }
+
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  chatSend.disabled = false;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Tab Switching
+// ═══════════════════════════════════════════════════════════════════════
+
+document.querySelectorAll('.panel-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    // Skip if already active
+    if (tab.classList.contains('active')) return;
+    const tabId = 'tab-' + tab.dataset.tab;
+    const newContent = document.getElementById(tabId);
+    const oldContent = document.querySelector('.tab-content.active');
+    // Animate switch
+    animeEngine.switchTab(newContent, oldContent);
+    // Update tab active states
+    document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// Health Polling
+// ═══════════════════════════════════════════════════════════════════════
+
+async function pollHealth() {
+  try {
+    const res = await fetch(API_BASE + '/health');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    healthData = await res.json();
+
+    const dot = document.getElementById('server-dot');
+    const statusText = document.getElementById('server-status');
+    const wasOffline = dot.className !== 'status-dot online';
+    dot.className = 'status-dot online';
+    statusText.textContent = 'Connected';
+    if (wasOffline) animeEngine.animateStatusDot(dot);
+
+    const models = healthData.models || {};
+    const loaded = Object.values(models).filter(v => v === 'loaded').length;
+    const total = Object.keys(models).length;
+    const mDot = document.getElementById('models-dot');
+    const mText = document.getElementById('models-status');
+    mDot.className = 'status-dot ' + (loaded === total ? 'online' : loaded > 0 ? 'partial' : 'offline');
+    mText.textContent = `Models: ${loaded}/${total}`;
+
+    if (healthData.llm) {
+      const llmStatus = document.getElementById('server-status');
+      if (healthData.llm.status === 'ok') {
+        llmStatus.textContent = `LLM: ${healthData.llm.model || 'qwen3:8b'} (${healthData.llm.latency_ms || '?'}ms)`;
+      }
+    }
+  } catch (err) {
+    const dot = document.getElementById('server-dot');
+    dot.className = 'status-dot offline';
+    document.getElementById('server-status').textContent = 'Disconnected';
+    document.getElementById('models-dot').className = 'status-dot';
+    document.getElementById('models-status').textContent = 'Offline';
+  }
+}
+
+setInterval(pollHealth, 5000);
+pollHealth();
+
+// ═══════════════════════════════════════════════════════════════════════
+// Analytics Panel
+// ═══════════════════════════════════════════════════════════════════════
+
+async function updateAnalytics() {
+  const container = document.getElementById('analytics-models');
+  try {
+    const res = await fetch(API_BASE + '/models/status');
+    if (!res.ok) throw new Error('fail');
+    const data = await res.json();
+    let html = '';
+    for (const [name, info] of Object.entries(data.details || {})) {
+      const ok = info.loaded;
+      html += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <span style="color:var(--text-secondary)">${name}</span>
+        <span style="color:${ok ? 'var(--alert-ok)' : 'var(--text-muted)'}">${ok ? '✅ ' + (info.engine || '') : '❌ unavailable'}</span>
+      </div>`;
+    }
+    if (data.warnings && data.warnings.length > 0) {
+      html += `<div style="margin-top:8px;padding:6px;background:rgba(255,145,0,0.1);border-radius:6px;font-size:10px;color:var(--alert-warning)">`;
+      data.warnings.forEach(w => { html += `⚠ ${w}<br>`; });
+      html += `</div>`;
+    }
+    container.innerHTML = html;
+  } catch {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:11px">Offline — start the server</div>';
+  }
+}
+
+setInterval(updateAnalytics, 10000);
+updateAnalytics();
+
+})();
+</script>
+</body>
+</html>

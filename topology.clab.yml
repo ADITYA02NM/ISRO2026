@@ -1,0 +1,157 @@
+# PS13 — 4-Site MPLS/SD-WAN Topology
+#
+# Sites: Bangalore (HQ), Mumbai (DC), Chennai (DR), Delhi (Relay)
+# 10 FRR routers: 2xP (core), 4xPE (edge), 4xCE (customer)
+# 1 TRex traffic generator connected to Bangalore CE
+#
+# IPsec tunnel: Bangalore PE ↔ Delhi PE (simulated in FRR config)
+#
+# Containerlab v0.76.1
+# FRR: frrouting/frr:latest (as kind: linux)
+# TRex: trexcisco/trex:latest (as kind: linux)
+#
+# NOTE: After deploy, run scripts/start-frr.sh to start FRR daemons
+# in all router containers.
+
+name: ps13
+
+topology:
+
+  nodes:
+    # ── Bangalore (HQ) ───────────────────────────────────────
+    ce1-blr:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.10
+      sysctls: &frr-sysctls
+        net.ipv4.ip_forward: 1
+        net.ipv4.conf.all.forwarding: 1
+        net.mpls.conf.lo.input: 1
+        net.mpls.platform_labels: 100000
+      binds:
+        - configs/ce1-blr.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    pe1-blr:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.11
+      sysctls: *frr-sysctls
+      binds:
+        - configs/pe1-blr.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    p1:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.12
+      sysctls: *frr-sysctls
+      binds:
+        - configs/p1.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    # ── Mumbai (DC) ───────────────────────────────────────
+    ce1-mum:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.20
+      sysctls: *frr-sysctls
+      binds:
+        - configs/ce1-mum.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    pe1-mum:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.21
+      sysctls: *frr-sysctls
+      binds:
+        - configs/pe1-mum.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    p2:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.22
+      sysctls: *frr-sysctls
+      binds:
+        - configs/p2.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    # ── Chennai (DR) ───────────────────────────────────────
+    ce1-che:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.30
+      sysctls: *frr-sysctls
+      binds:
+        - configs/ce1-che.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    pe1-che:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.31
+      sysctls: *frr-sysctls
+      binds:
+        - configs/pe1-che.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    # ── Delhi (Relay) ───────────────────────────────────────
+    ce1-del:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.40
+      sysctls: *frr-sysctls
+      binds:
+        - configs/ce1-del.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    pe1-del:
+      kind: linux
+      image: frrouting/frr:latest
+      mgmt-ipv4: 172.20.0.41
+      sysctls: *frr-sysctls
+      binds:
+        - configs/pe1-del.cfg:/etc/frr/frr.conf
+        - configs/daemons:/etc/frr/daemons
+
+    # ── TRex Traffic Generator ─────────────────────────────
+    trex:
+      kind: linux
+      image: trexcisco/trex:latest
+      mgmt-ipv4: 172.20.0.100
+      env:
+        TREX_CPU_CORES: "0-3"
+        TREX_INTERFACE: "eth1"
+
+  links:
+    # ── Core Interconnects ──────────────────────────────────
+    # P1 (Bangalore) ↔ P2 (Mumbai) — primary core link
+    - endpoints: ["p1:eth1", "p2:eth1"]
+
+    # P1 (Bangalore) ↔ PE1-CHE (Chennai)
+    - endpoints: ["p1:eth2", "pe1-che:eth1"]
+
+    # P1 (Bangalore) ↔ PE1-DEL (Delhi)
+    - endpoints: ["p1:eth3", "pe1-del:eth1"]
+
+    # P2 (Mumbai) ↔ PE1-CHE (Chennai) — redundant path
+    - endpoints: ["p2:eth2", "pe1-che:eth2"]
+
+    # ── PE ↔ P Links ──────────────────────────────────────
+    - endpoints: ["pe1-blr:eth1", "p1:eth4"]
+    - endpoints: ["pe1-mum:eth1", "p2:eth3"]
+
+    # ── CE ↔ PE Links (Customer connections) ─────────────────
+    - endpoints: ["ce1-blr:eth1", "pe1-blr:eth2"]
+    - endpoints: ["ce1-mum:eth1", "pe1-mum:eth2"]
+    - endpoints: ["ce1-che:eth1", "pe1-che:eth3"]
+    - endpoints: ["ce1-del:eth1", "pe1-del:eth2"]
+
+    # ── TRex → Bangalore CE (traffic injection point) ───────
+    - endpoints: ["trex:eth1", "ce1-blr:eth2"]
+
+mgmt:
+  network: ps13-mgmt
+  ipv4-subnet: 172.20.0.0/24

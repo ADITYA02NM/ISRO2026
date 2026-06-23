@@ -1,0 +1,26 @@
+# Elasticsearch Configuration — PS13 Telemetry
+# Single-node cluster for log/metrics indexing
+
+cluster.name: ps13-telemetry
+node.name: node-1
+path.data: /data/elasticsearch
+path.logs: /var/log/elasticsearch
+
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+discovery.type: single-node
+
+# Security disabled for local air-gapped deployment
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.security.http.ssl.enabled: false
+xpack.security.transport.ssl.enabled: false
+
+# Monitoring
+xpack.monitoring.collection.enabled: true
+
+# Memory
+indices.memory.index_buffer_size: 10%
+indices.fielddata.cache.size: 20%
