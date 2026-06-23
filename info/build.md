@@ -66,6 +66,45 @@
 
 ---
 
+## Model Selection Criteria
+
+### Selection Framework
+
+| Criterion | Requirement | Rationale |
+|-----------|-------------|-----------|
+| **Task type** | Network time-series + classification + anomaly | Need models for forecasting (LSTM, Prophet), graph propagation (GNN), classification (XGBoost), anomaly (Isolation Forest, Autoencoder), time-to-event (TTI Regressor) |
+| **Inference speed** | < 500ms per batch on CPU (RTX 4060 shared with Ollama) | ONNX runtime with FP16 optimization; avoid GPU contention with LLM |
+| **Memory footprint** | Total < 2GB VRAM for all models combined | Leaves 6GB for Ollama; RTX 4060 has 8GB VRAM |
+| **Maturity** | Well-documented, ONNX-exportable | Each model has production-grade ONNX support or proven equivalence |
+| **Interpretability** | Feature importance + prediction explainability | XGBoost provides SHAP values; GNN edge weights show propagation paths |
+| **False-positive tolerance** | Low (NOC trust depends on accuracy) | Ensemble voting reduces false positives; autoencoder reconstruction error as sanity check |
+
+### Why 7 Models (Not Fewer)
+
+| Model | Captures | Complementary to |
+|-------|----------|-----------------|
+| LSTM | Temporal patterns, short-term trends | Prophet (long-term) |
+| Prophet | Seasonality, trend decomposition | LSTM (short-term) |
+| GNN | Topology propagation, cascade effects | All (orthogonal signal) |
+| XGBoost | Feature interactions, explicit classification | Autoencoder (implicit) |
+| Isolation Forest | Global anomaly detection | Autoencoder (local) |
+| Autoencoder | Reconstruction-based anomaly, unseen patterns | IsoForest (explicit) |
+| TTI Regressor | Time-until-failure forecasting | All (prediction horizon) |
+
+### Model Offloading Strategy
+
+| Model | Primary Runtime | VRAM | When Loaded |
+|-------|-----------------|------|-------------|
+| LSTM | ONNX (CPU) | ~200MB | On demand |
+| Prophet | native (CPU) | ~100MB | On demand |
+| GNN | ONNX (CPU) | ~300MB | On demand |
+| XGBoost | native (CPU) | ~50MB | Always loaded |
+| Isolation Forest | ONNX (CPU) | ~50MB | Always loaded |
+| Autoencoder | ONNX (CPU) | ~100MB | On demand |
+| TTI Regressor | native (CPU) | ~50MB | On demand |
+
+---
+
 ## Phase 3: Predictive ML Ensemble
 
 **Goal**: 7 trained models (LSTM, Prophet, GNN, XGBoost, Isolation Forest, Autoencoder, TTI Regressor) exported to ONNX, running inference on telemetry stream.
@@ -263,6 +302,94 @@
 - Inference pipeline handles 100+ metrics per second
 - WS delivers updates to both dashboards with < 200ms latency
 - All tests pass with zero cloud dependencies
+
+---
+
+## Air-Gap Validation Plan
+
+### Compliance Checks
+
+| Check | Method | Pass Criteria | Score Contribution |
+|-------|--------|---------------|-------------------|
+| DNS leak | Attempt `nslookup` on 10 known external domains (google.com, github.com, etc.) | All must fail (NXDOMAIN or timeout) | 25 pts |
+| HTTP proxy | Check `http_proxy`/`https_proxy` env vars + attempt `curl` to external HTTP endpoint | Proxy env vars must NOT be set; curl must fail | 15 pts |
+| Process audit | Compare `ps aux` output against whitelist (ollama, python, node, docker, clab, etc.) | No unexpected processes with open network handles | 20 pts |
+| Data flow | Parse `ss -tuanp` output, flag any connections to non-local IPs | All connections must be to 127.0.0.1, 10.x.x.x, 172.x.x.x, or 192.168.x.x | 25 pts |
+| Filesystem | Check for cached cloud credentials, `.aws/`, `.azure/`, `gcloud` configs | No cloud SDK config folders present | 15 pts |
+
+**Scoring:** 0-100 scale, threshold ≥ 80 = compliant. Each check independently scored.
+
+### Validation Schedule
+
+- **Every build:** Quick scan (DNS + process audit only) after any config change
+- **Phase 6 entry:** Full scan before air-gap validation begins
+- **Pre-demo:** Full scan with report generated
+
+### Mock Strategy
+- Scanner runs against actual system state (no mocking needed for final phase)
+- For development: `airgap/mock_checks.sh` simulates pass/fail responses
+
+---
+
+## Validation Scenarios
+
+### Scenario 1 — Link Flap (P1-P2 core link)
+| Step | Terminal | Action | Expected Result |
+|------|----------|--------|-----------------|
+| 1 | T1 | Operator clicks P1 → Bounce Interface (port toward P2) | Loading spinner, then success |
+| 2 | T3 | Simulates interface down → detects link loss | — |
+| 3 | T2 | Alert appears: CRITICAL "P1-P2 Link Down" | Red badge, animated pulse |
+| 4 | T3 | Rule engine detects OSPF adjacency lost | — |
+| 5 | T3 | Ollama LLM analyzes: "Interface loopback test needed" | — |
+| 6 | T2 | Solution panel: "1. Run diagnostic on P1" | Confidence score, quick actions |
+| 7 | T1 | Node P1 pulses amber, HUD shows "3/4 ONLINE" | — |
+
+### Scenario 2 — BGP Flap (PE1-PE2)
+| Step | Terminal | Action | Expected Result |
+|------|----------|--------|-----------------|
+| 1 | T1 | Operator triggers Anomaly → BGP Flap on Mumbai PE1 | Amber packet animates |
+| 2 | T3 | BGP session oscillates 3x in 5 min | Rule engine triggers BGP flap detection |
+| 3 | T2 | CRITICAL alert: "BGP session flapping — Bangalore ↔ Mumbai" | Auto-expand, severity badge |
+| 4 | T3 | Ollama analyzes: "Hold timer mismatch (30s vs 90s)" | Structured Q1/Q2/Q3 |
+| 5 | T2 | Solution: "1. Align hold timers 2. Reset BGP session" | Quick action buttons |
+| 6 | T2 | Operator clicks "Reset BGP" → POST to T3 | Loading → success |
+| 7 | T1 | Green ack packet returns, BGP status goes green | — |
+
+### Scenario 3 — Congestion (Delhi CE link saturated)
+| Step | Terminal | Action | Expected Result |
+|------|----------|--------|-----------------|
+| 1 | T3 | Simulates throughput spike on Delhi CE | — |
+| 2 | T2 | WARNING alert: "Delhi CE utilization > 90%" | Amber badge |
+| 3 | T3 | ML models (LSTM + Prophet) predict sustained congestion | — |
+| 4 | T2 | ECharts timeline shows utilization curve | Prediction overlay |
+| 5 | T3 | Auto-trigger Ollama: "QoS policy needed on Delhi CE" | — |
+| 6 | T2 | Solution: "Apply QoS shaping on egress interface" | Quick action: Lockdown |
+| 7 | T1 | Delhi node highlights, HUD shows latency spike | — |
+
+### Scenario 4 — Route Leak (Chennai CE advertises wrong VRF)
+| Step | Terminal | Action | Expected Result |
+|------|----------|--------|-----------------|
+| 1 | T1 | Operator triggers Anomaly → Route Leak on Chennai CE | Amber packet, device state changes |
+| 2 | T3 | Wrong VRF routes detected in PE3 table | Rule engine: CRITICAL route leak |
+| 3 | T2 | CRITICAL alert: "Route leak detected — Chennai CE → PE3" | Red badge, affected routes listed |
+| 4 | T3 | GNN model computes blast radius: Mumbai + Bangalore affected | — |
+| 5 | T2 | Topology overlay highlights affected region | Mini-map shows blast radius |
+| 6 | T2 | Solution: "Lockdown Chennai CE immediately" | Lockdown quick action |
+| 7 | T2 | Operator clicks Lockdown → T3 executes → T1 shows locked | Full loop closed |
+
+### Scenario 5 — Full Incident Lifecycle (Integration Test)
+| Step | Terminal | Action | Expected Result |
+|------|----------|--------|-----------------|
+| 1 | T1 | Trigger BGP flap on Mumbai | Anomaly injected |
+| 2 | T2 | Alert arrives: CRITICAL | Feed updates |
+| 3 | T2 | Solution arrives with root cause + actions | Right panel populates |
+| 4 | T2 | Operator acknowledges alert | Alert status → ACKNOWLEDGED |
+| 5 | T2 | Operator clicks "Reset BGP" | Command sent |
+| 6 | T1 | Command history logs the reset | Green entry |
+| 7 | T3 | BGP stabilizes | — |
+| 8 | T2 | Resolution shows in timeline, alert → CLOSED | Timeline updated |
+| 9 | T1 | All nodes green, HUD shows "4/4 ONLINE" | Full recovery |
+| **Max time:** | | | **< 60 seconds** |
 
 ---
 

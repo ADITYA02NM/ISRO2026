@@ -171,6 +171,64 @@ An AI-powered NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN net
 
 ---
 
+## North Star — Q1 / Q2 / Q3
+
+The project is structured around three north-star questions that define success:
+
+### Q1 — Network Simulation
+> *"Does the simulated network behave like a real enterprise MPLS/SD-WAN?"*
+
+The Containerlab topology must pass BGP convergence, MPLS LSP verification, IPsec tunnel establishment, and realistic traffic generation. Without Q1, there is nothing to monitor or predict.
+
+**Evaluation weight: 35%**
+
+### Q2 — ML Prediction & LLM Copilot
+> *"Can the system predict failures before they happen and explain them in plain language?"*
+
+The ML ensemble (7 models) must detect anomalies, forecast utilization, and predict time-to-incident. The Ollama LLM with RAG must produce structured Q1/Q2/Q3 answers (What happened, Why, How to fix) that a NOC operator can act on.
+
+**Evaluation weight: 35%**
+
+### Q3 — Air-Gap & Automation
+> *"Does everything work without touching the internet, and does the NOC workflow close the loop?"*
+
+Alert correlation, playbook suggestion, incident timeline tracking, and air-gap validation must all function with zero cloud dependencies. The system is self-contained on the RTX 4060 laptop.
+
+**Evaluation weight: 20%**
+
+**Cross-cutting: Documentation, Evaluation Rubric & Reproducibility (10%)**
+
+---
+
+## Evaluation Criteria
+
+| Component | Weight | Criteria |
+|-----------|--------|----------|
+| **Network Simulation** | 35% | Topology deploys, all BGP/OSPF/MPLS sessions established, IPsec tunnels up, TRex traffic > 100K pps, 7 fault scenarios inject and revert |
+| **ML Prediction** | 35% | All 7 models load and infer, batch pipeline runs every 30s, event-driven inference < 2s, WS delivery < 500ms, ONNX parity within 1e-5 |
+| **LLM Copilot** | (included in ML) | Q1/Q2/Q3 structured output, RAG precision@5 > 0.8, auto-trigger on prediction > 0.8 confidence, response < 10s on RTX 4060 |
+| **NOC Workflow** | 10% | Alert correlation groups correctly, blast radius computed, playbook suggestion ranks correct top-3, incident timeline tracks lifecycle |
+| **Air-Gap Integrity** | 10% | DNS leak check passes, HTTP proxy validated, no external IPs in data flow, compliance score ≥ 95 |
+| **Documentation & Reproducibility** | 10% | All info/ docs maintained, build phases reproducible, T1/T2/T3 prompts generate working UIs, test scenarios documented |
+
+**Pass threshold:** ≥ 80% overall with no single component below 60%.
+
+---
+
+## Documentation & Maintenance Plan
+
+| Practice | Detail |
+|----------|--------|
+| **Versioning** | All docs tracked in git alongside code; PRs must update relevant info/ files |
+| **Review cadence** | Every phase milestone triggers a doc review; gaps filed as GitHub issues |
+| **Per-terminal docs** | T1.md and T2.md are stitch prompts — tested and versioned; changes to API contracts MUST update these files |
+| **T3 API contracts** | All REST + WS endpoints documented in T3.md; generated from running code (FastAPI auto-docs) |
+| **Build plan** | `build.md` is the single source of truth for scheduling; updated weekly during 14-day sprint |
+| **Resources** | `resources.md` links must be checked for 404s before each phase |
+| **Problem statement** | `problem-statement.md` is the north-star doc — updated only when project scope changes |
+
+---
+
 ## Hardware Target
 
 | Component | Spec |
