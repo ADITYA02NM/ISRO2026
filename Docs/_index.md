@@ -109,6 +109,12 @@ ISRO2026/
 |-----|--------|
 | [[glossary/_glossary\|Glossary]] | All terms defined |
 
+### 🚀 Expansion
+
+| Doc | Covers |
+|-----|--------|
+| [[expansion-plans\|Expansion Plans]] | 4-phase roadmap (A/B/C/D) — auto-remediation, real data, prod readiness, NOC experience |
+
 ### 📝 Reference
 
 15 reference notes in `info/` covering: T1/T2/T3 architectures, problem statement, build notes, flow diagrams, frontend references, future plans, learning resources, and the `random.md` inspiration file for the dashboard design.
