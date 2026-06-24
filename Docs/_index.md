@@ -109,15 +109,17 @@ ISRO2026/
 |-----|--------|
 | [[glossary/_glossary\|Glossary]] | All terms defined |
 
-### 🚀 Expansion
+### 🚀 Future & Expansion
 
 | Doc | Covers |
 |-----|--------|
-| [[expansion-plans\|Expansion Plans]] | 4-phase roadmap (A/B/C/D) — auto-remediation, real data, prod readiness, NOC experience |
+| [[../info/future\|Future Plans]] | Complete roadmap — Phase A-D expansions + SSD bootable product vision |
 
 ### 📝 Reference
 
-15 reference notes in `info/` covering: T1/T2/T3 architectures, problem statement, build notes, flow diagrams, frontend references, future plans, learning resources, and the `random.md` inspiration file for the dashboard design.
+15 reference notes in `info/` covering: T1/T2/T3 architectures, problem statement, build notes, flow diagrams, frontend references, learning resources, and the `random.md` inspiration file for the dashboard design.
+
+> **Full future roadmap now at [`info/future.md`](../info/future.md) — includes Phase A-D expansion plans + SSD bootable product vision.**
 
 > **Project root**: `/home/ego/Documents/ISRO2026`
 > **Status**: [[_implementation-notes|Implementation Notes]]
