@@ -66,6 +66,9 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+# === Scratch / Planning ===
+tasks/
+
 # === Docker ===
 docker-compose.override.yml
 

@@ -154,7 +154,7 @@ ISRO2026/
 ├── scripts/                    # Fault injection + utility scripts
 ├── telemetry/                  # Telemetry configs (Telegraf, Prometheus, etc.)
 ├── info/                       # Reference docs
-└── run.md                      # 3-terminal verbose run guide (to be created)
+└── run.md                      # 3-terminal verbose run guide
 ```
 
 ---
