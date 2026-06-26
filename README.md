@@ -2,7 +2,7 @@
 
 **ISRO 2026 — Team Cyber Assassins**
 
-A solo-developed, air-gapped NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN network, streams real-time telemetry, predicts failures using an ensemble of ML models, and provides natural-language diagnostic assistance via an offline LLM with Retrieval-Augmented Generation (RAG).
+A team-developed, air-gapped NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN network, streams real-time telemetry, predicts failures using an ensemble of ML models, and provides natural-language diagnostic assistance via an offline LLM with Retrieval-Augmented Generation (RAG).
 
 No cloud dependency. No internet required at runtime. All inference, storage, and orchestration runs locally on a single RTX 4060 laptop.
 
@@ -11,119 +11,81 @@ No cloud dependency. No internet required at runtime. All inference, storage, an
 ## Architecture (3-Terminal)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                 TERMINAL 1: Operator Console (port 8000)         │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │  FastAPI Backend + LLM Copilot Interface                   │  │
-│  │  • /health, /models/status, /predict, /explain             │  │
-│  │  • /query (LLM diagnostics), /rag/ingest, /rag/query       │  │
-│  │  • WebSocket push: predictions, alerts, RAG responses      │  │
-│  │  • Ollama qwen3:8b integration (offline LLM)               │  │
-│  │  • ChromaDB RAG (7,920 docs ingested)                      │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬───────────────────────────────────┘
-                               │ HTTP/WS (predictions, diagnostics)
-                               ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              TERMINAL 2: Alert Dashboard (port 8000)             │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │  3D ISRO-Themed NOC Dashboard (Three.js + anime.js)        │  │
-│  │  • Orbital 3D map: Bangalore HQ / Mumbai DC / Chennai DR   │  │
-│  │  • Real-time ML predictions (TTI, failure probability)     │  │
-│  │  • Alert correlation feed (topology-aware grouping)        │  │
-│  │  • LLM Copilot panel (Q1/Q2/Q3 structured answers)         │  │
-│  │  • Playbook suggestion panel                               │  │
-│  │  • Incidents timeline + history                            │  │
-│  │  • Air-gap compliance status                               │  │
-│  │  • Local JS libs: three.min.js (589KB), anime.min.js (17KB)│  │
-│  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬───────────────────────────────────┘
-                               │ WS (live updates)
-                               ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         TERMINAL 3: Network Topology Verbose (Containerlab)      │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │  Containerlab Simulation + FRR Routing                      │  │
-│  │  • 4-site MPLS/SD-WAN topology (HQ, DC, DR, Regional)      │  │
-│  │  • FRRouting: BGP (eBGP/iBGP), OSPF, MPLS, LDP             │  │
-│  │  • IPsec site-to-site tunnels (StrongSwan)                 │  │
-│  │  • TRex traffic generator (realistic data-plane load)      │  │
-│  │  • 7 fault injection scenarios (link fail, BGP flap, etc.) │  │
-│  │  • Verbose logging: all router state, BGP updates, MPLS    │  │
-│  │  • Telegraf metrics export (5s interval)                   │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│              TERMINAL 1: Ollama LLM (port 11434)                     │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  ollama serve                                                  │  │
+│  │  • Model: qwen3:8b (8.2B params, Q4_K_M, 5.2GB)              │  │
+│  │  • GPU: NVIDIA CUDA 13.3, RTX 4060 (8GB VRAM)                 │  │
+│  └────────────────────────────┬───────────────────────────────────┘  │
+│                               │ ollama Python SDK                     │
+└───────────────────────────────┼───────────────────────────────────────┘
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│           TERMINAL 2: FastAPI + RAG + ML (port 8000)                 │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  uvicorn noc_copilot:app                                       │  │
+│  │  • ChromaDB RAG — 7,920 indexed runbook docs                  │  │
+│  │  • ML Models: XGBoost, Isolation Forest, Autoencoder,          │  │
+│  │    Prophet, TTI Regressor                                      │  │
+│  │  • Health check: GET /api/health                               │  │
+│  │  • Chat proxy: POST /api/chat → Ollama + RAG context           │  │
+│  └────────────────────────────┬───────────────────────────────────┘  │
+│                               │ HTTP (predictions, chat)              │
+└───────────────────────────────┼───────────────────────────────────────┘
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│          TERMINAL 3: Express + React Dashboard (port 3000)           │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  npx tsx server.ts + npx vite build                            │  │
+│  │  • Single-page React dashboard (Vite + TypeScript + Tailwind)  │  │
+│  │  • 3-panel layout: Alerts/Dashboard | IndiaMap | AI Chat       │  │
+│  │  • 14 REST API endpoints (cities, devices, alerts, events...)  │  │
+│  │  • 3D visualizations (Three.js R3F — Starfield, OrbitViews)    │  │
+│  │  • Anime.js entrance animations on IndiaMap                    │  │
+│  │  • Framer Motion view transitions + toast system               │  │
+│  │  • State-machine center view: Map → Orbit → Device             │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Data Flow
-
-```
-Containerlab ──► Telegraf ──► Prometheus ──► ML Engine ──► LLM Copilot
-   (FRR nodes)   (metrics)    (store/alert)   (inference)    (RAG + Qwen3)
-                                                  │
-                                                  ▼
-                                         NOC Workflow
-                                      (correlation + playbook)
-                                                  │
-                                                  ▼
-                                        Dashboard UI (WS push)
-```
-
-- **Terminal 3** runs Containerlab with verbose logging; exports metrics via Telegraf
-- **Terminal 1** runs FastAPI backend; ingests metrics, runs ML inference, serves LLM diagnostics
-- **Terminal 2** displays 3D dashboard; subscribes to WS for real-time predictions and alerts
-- **All data stays local**: No external DNS, HTTP proxies, or cloud endpoints at runtime
 
 ---
 
 ## Features
 
-### Phase 1 — Network Simulation
-- Containerlab topology with 4 sites (HQ, DC, DR, Regional)
-- FRRouting: BGP (eBGP/iBGP), OSPF, MPLS, LDP
-- IPsec site-to-site tunnels
-- TRex traffic generator for realistic data-plane load
-- 7 fault injection scenarios: link fail, BGP flap, congestion, route leak, interface error, node crash, MPLS LSP break
+### NOC Dashboard
+- **India Map**: Interactive SVG map with clickable city markers (BLR, DEL, BOM, MAA) with geo-projected coordinates
+- **City Orbital View**: 3D R3F scene with device nodes, orbital rings, connection paths with continuous data-flow animation
+- **Device Inspector**: Health metrics (CPU, memory, uptime) with shimmer progress bars
+- **Alert Feed**: Pinned alerts always visible, scrollable non-pinned list, pin/delete icons
+- **AI Chat**: RAG-augmented Ollama Qwen3-8B with markdown-formatted responses, typing indicators, timestamps
 
-### Phase 2 — Telemetry Pipeline
-- Telegraf agent on each container for metrics collection
-- Prometheus for time-series storage and alert rules
-- Kafka for streaming telemetry to ML engine
-- ELK stack for log aggregation and search
-
-### Phase 3 — Predictive ML Ensemble
-- **LSTM**: Time-series prediction of interface utilization, error rates
-- **Prophet**: Trend/seasonality decomposition of network KPIs
-- **GNN**: Graph Neural Network for topology-aware failure propagation
-- **XGBoost**: Classifier for fault type given telemetry signature
+### ML Ensemble
+- **XGBoost**: Fault type classification from telemetry signature
 - **Isolation Forest**: Real-time anomaly detection on metric streams
 - **Autoencoder**: Reconstruction-error based anomaly detection
+- **Prophet**: Trend/seasonality decomposition of network KPIs
 - **TTI Regressor**: Time-to-incident prediction for proactive maintenance
-- All models exported to ONNX for air-gap portability (with PyTorch .pt fallbacks)
 
-### Phase 4 — Offline LLM Copilot
-- **Qwen3-8B** via Ollama for diagnostic analysis and runbook generation
-- **ChromaDB** vector store with 7,920 ingested documents
-- **nomic-embed-text** for embeddings (qwen3 lacks /api/embeddings endpoint)
-- Structured output format:
-  - **Q1 (What)**: Failure type, severity, affected devices
-  - **Q2 (Why)**: Root cause analysis with evidence chain
-  - **Q3 (How)**: Remediation steps, CLI commands, escalation path
+### Fault Simulation (7 Types)
+| Type | Severity | Description |
+|------|----------|-------------|
+| latency | warning | Latency spike on device link |
+| packet_loss | warning | Packet loss detected |
+| congestion | critical | Link congestion > 90% utilization |
+| bgp_flap | critical | BGP session oscillating |
+| ospf_issue | critical | OSPF neighbor down |
+| link_down | critical | Physical link down |
+| route_leak | critical | Route advertisement leak |
 
-### Phase 5 — NOC Workflow Automation
-- **NetworkX** graph analysis for topology-aware alert correlation
-- Alert prioritization based on network centrality and blast radius
-- Automated playbook suggestion matching current symptoms
-- Incident timeline summarization with severity progression
-
-### Phase 6 — Air-Gap Scanner + Validation
-- DNS leak detection (verifies no external DNS queries)
-- HTTP proxy validation (confirms no outbound connections)
-- Process isolation audit (only whitelisted processes running)
-- Data flow verification (proves no PII/data leaves host)
-- Comprehensive validation: all phases verified end-to-end
+### UI Polish
+- Boot loading sequence (5-step typewriter with [OK] markers)
+- Anime.js entrance animations (connection line draw, city node bounce, label slide)
+- Toast notifications (auto-dismiss after 4s)
+- "Updated Xs ago" live timestamps
+- Health bar shimmer effect
+- Chat message markdown formatting + timestamps
+- Framer Motion AnimatePresence view transitions
 
 ---
 
@@ -131,44 +93,76 @@ Containerlab ──► Telegraf ──► Prometheus ──► ML Engine ──�
 
 ```
 ISRO2026/
-├── topology.clab.yml           # 4-site MPLS/SD-WAN topology
-├── configs/                    # FRR router configs (BGP, OSPF, MPLS, LDP)
-├── ml/                         # ML ensemble + FastAPI backend + dashboard
-│   ├── noc_copilot.py          # FastAPI server (7 endpoints)
-│   ├── noc-dashboard.html      # 3D ISRO-themed dashboard (Three.js + anime.js)
-│   ├── rag_pipeline.py         # ChromaDB RAG pipeline
-│   ├── llm_interface.py        # Ollama wrapper + system prompts
-│   ├── models/
-│   │   ├── checkpoints/        # Model files (xgboost.json, lstm.pt, gnn.pt, etc.)
-│   │   └── onnx/               # ONNX exports (4 files)
-│   ├── vectordb/               # ChromaDB persistent store (7,920 docs)
-│   ├── static/js/              # Local JS libs (three.min.js, anime.min.js)
-│   ├── data/telemetry.parquet  # Synthetic telemetry (7,920 rows × 109 cols)
-│   ├── venv/                   # Python virtual environment
-│   └── airgap_validate.py      # Air-gap validation suite
-├── Docs/                       # Knowledge map + phase documentation
-│   ├── _index.md               # Documentation index
-│   ├── _implementation-notes.md # Implementation status + known issues
-│   ├── phases/                 # Phase 1-6 detailed docs
-│   └── architecture/           # Architecture deep-dives
-├── scripts/                    # Fault injection + utility scripts
-├── telemetry/                  # Telemetry configs (Telegraf, Prometheus, etc.)
-├── info/                       # Reference docs
-└── run.md                      # 3-terminal verbose run guide
+├── index.html                  # Entry point (title: PS13)
+├── package.json                # Node dependencies
+├── vite.config.ts              # Vite bundler config
+├── tsconfig.json               # TypeScript config
+├── tailwind.config.js          # Tailwind CSS config
+├── postcss.config.js           # PostCSS config
+├── server.ts                   # Express server (REST API + SPA)
+├── noc_copilot.py              # FastAPI server (ML + RAG + LLM)
+├── stop.sh                     # Stop all services
+├── ps13.sh                     # 3-terminal tmux launcher
+├── ps13-ollama.sh              # Terminal 1 script
+├── ps13-fastapi.sh             # Terminal 2 script
+├── ps13-frontend.sh            # Terminal 3 script
+├── README.md
+├── info/                       # Project documentation
+│   ├── main.md                 # Architecture overview
+│   ├── flow.md                 # Data flow sequences
+│   ├── frontend.md             # Frontend architecture
+│   ├── build.md                # Build plan + project structure
+│   ├── T1.md                   # Ollama terminal docs
+│   ├── T2.md                   # FastAPI terminal docs
+│   ├── T3.md                   # Express+React terminal docs
+│   ├── frontend1.md            # Legacy reference
+│   ├── frontend2.md            # Legacy reference
+│   ├── problem-statement.md    # Problem statement
+│   ├── problem-statement-exact.md
+│   ├── resources.md            # Stack references
+│   ├── learn.md                # Learning path
+│   ├── future.md               # Future roadmap
+│   └── SR.md                   # (gitignored)
+├── src/                        # React application
+│   ├── App.tsx                 # Root component + layout
+│   ├── main.tsx                # React entry point
+│   ├── index.css               # Tailwind + animations + theme
+│   ├── context/
+│   │   └── NocContext.tsx      # Global state (Context API)
+│   ├── services/
+│   │   └── api.ts              # Typed REST API client
+│   ├── types.ts                # TypeScript interfaces
+│   └── components/
+│       ├── Header.tsx          # Top bar (logo, status dots)
+│       ├── LeftPanel.tsx       # Dashboard + alert feed
+│       ├── ControlBar.tsx      # Bottom trigger bar
+│       ├── ChatTab.tsx         # AI chat panel
+│       ├── Starfield.tsx       # CSS star background
+│       └── shared/
+│           ├── IndiaMap.tsx     # SVG India map (clickable)
+│           ├── CityOrbitView.tsx# 3D orbital scene (R3F)
+│           ├── DeviceInspector.tsx # Device health
+│           └── AnalyticsCard.tsx   # Stat card component
+├── ml/                         # ML models + data
+│   └── chroma_db/              # ChromaDB persistent vector store
+└── dist/                       # Built frontend (vite output)
 ```
 
 ---
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Network Sim | Containerlab v0.76.1, FRRouting (BGP/OSPF/MPLS/LDP), StrongSwan IPsec, TRex |
-| Backend | Python 3.11, FastAPI, WebSockets, NetworkX |
-| Dashboard | HTML5, Three.js, anime.js, local JS (no CDN) |
-| ML Engine | PyTorch, scikit-learn, XGBoost, Prophet, ONNX Runtime |
-| LLM | Ollama, Qwen3-8B, ChromaDB, nomic-embed-text |
-| Telemetry | Telegraf, Prometheus, Kafka, Elasticsearch, Kibana |
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + Vite + TypeScript + Tailwind CSS |
+| 3D Graphics | Three.js (@react-three/fiber + drei) |
+| Animations | anime.js v4 + Framer Motion |
+| Icons | Lucide React |
+| Backend API | Express + Node.js (tsx) |
+| ML + RAG | FastAPI + Python 3.11 |
+| LLM | Ollama + qwen3:8b |
+| Vector Store | ChromaDB |
+| GPU | CUDA 13.3 / RTX 4060 |
 
 ---
 
@@ -177,9 +171,9 @@ ISRO2026/
 | Component | Spec |
 |-----------|------|
 | GPU | NVIDIA RTX 4060 (8GB VRAM) |
-| CPU | AMD Ryzen 9 8945HS |
-| RAM | 15 GB |
-| Storage | Local NVMe |
+| CPU | AMD Ryzen 9 8945HS (8 cores / 16 threads) |
+| RAM | 15 GB DDR5 |
+| Storage | Local NVMe SSD |
 | Network | No internet required at runtime |
 
 ---
@@ -187,70 +181,97 @@ ISRO2026/
 ## Quick Start
 
 ### Prerequisites
-- Containerlab v0.76.1
-- Python 3.11 + venv
-- Ollama (for LLM inference)
-- Docker (for Containerlab)
+- Node.js 20+
+- Python 3.11+
+- Ollama (qwen3:8b model pulled)
+- tmux (recommended)
 
 ### 3-Terminal Run
 
-**Terminal 1 (Operator Console):**
 ```bash
-cd /home/ego/Documents/ISRO2026
-ollama serve
+# Quick start (all 3 terminals via tmux)
+./ps13.sh
+
+# Or manual:
+./ps13-ollama.sh      # Terminal 1: Ollama on :11434
+./ps13-fastapi.sh     # Terminal 2: FastAPI on :8000
+./ps13-frontend.sh    # Terminal 3: Express on :3000
 ```
 
-**Terminal 2 (Alert Dashboard):**
+Then open **http://localhost:3000** in Firefox.
+
+### Stop All Services
+
 ```bash
-cd /home/ego/Documents/ISRO2026
-ml/venv/bin/python -m uvicorn ml.noc_copilot:app --host 0.0.0.0 --port 8000
-# Then open browser: http://localhost:8000/docs (FastAPI Swagger)
-# Or open ml/noc-dashboard.html directly in browser
+./stop.sh
 ```
 
-**Terminal 3 (Network Topology Verbose):**
-```bash
-cd /home/ego/Documents/ISRO2026
-sudo containerlab deploy -t topology.clab.yml --recycle
-# Verbose output shows all router state, BGP updates, MPLS LSPs
-```
+### Verification
 
-### Validation
 ```bash
-cd /home/ego/Documents/ISRO2026
-ml/venv/bin/python ml/airgap_validate.py
-# Runs 42 air-gap integrity checks
+curl -s localhost:3000/api/cities        # 4 cities
+curl -s localhost:3000/api/alerts         # [] (empty, fresh start)
+curl -s localhost:3000/api/system/status  # All services green
+curl -s localhost:8000/api/health         # FastAPI health
 ```
 
 ---
 
 ## Status
 
-**Phase: Implementation Complete.**
+**Deployment: Complete. All services running.**
 
-- ✅ Network simulation (Containerlab + FRR + 7 fault scenarios)
-- ✅ ML ensemble (7 models trained + ONNX exports with .pt fallbacks)
-- ✅ FastAPI backend (7 endpoints, WebSocket support)
-- ✅ LLM Copilot (Ollama qwen3:8b + ChromaDB RAG with 7,920 docs)
-- ✅ 3D Dashboard (Three.js + anime.js, local JS, no CDN)
-- ✅ Air-gap validation (42 checks, 36/42 pass with services running)
-- ✅ Documentation (Docs/ knowledge map + phase docs)
+- ✅ Ollama qwen3:8b (GPU, 5.2GB, 8.2B params)
+- ✅ FastAPI + ChromaDB RAG (7,920 docs indexed)
+- ✅ Express + React SPA (14 API endpoints)
+- ✅ 5 ML models loaded (XGBoost, IsoForest, Autoencoder, Prophet, TTI)
+- ✅ IndiaMap with real SVG outline + geo-projected cities
+- ✅ 3D orbital views (CityOrbitView, Starfield)
+- ✅ Anime.js entrance animations
+- ✅ Framer Motion view transitions + toast system
+- ✅ Fault simulation (7 types, configurable city/device)
+- ✅ Alert management (pin, delete, pin-sticky layout)
+- ✅ AI Chat with markdown formatting
+- ✅ tmux 3-pane launcher (ps13.sh)
+- ✅ stop.sh clean shutdown
+- ✅ All 15+ hardcoded value fixes applied (dynamic city/device names)
+- ✅ Build verification (vite build — 1680+ modules, ~2s)
 
 **Known Issues:**
-- ONNX exports for LSTM/GNN/XGBoost/IsolationForest fail due to PyTorch/sklearn version mismatches → fallback to .pt/native formats
-- qwen3:8b lacks /api/embeddings endpoint → use nomic-embed-text for RAG
-- SR.md contains live GitHub PAT (gitignored, revoke at github.com/settings/tokens)
+- LSTM + GNN models offline (require TensorFlow + PyTorch Geometric)
+- Server must be started with `./ps13-frontend.sh` or `nohup` (persistent shell)
 
 ---
 
 ## Documentation
 
-- **Docs/_index.md**: Documentation index
-- **Docs/_implementation-notes.md**: Implementation status, known issues, model performance
-- **Docs/phases/**: Phase 1-6 detailed documentation
-- **Docs/architecture/**: Architecture deep-dives
-- **run.md**: 3-terminal verbose run guide
+| Document | Content |
+|----------|---------|
+| `info/main.md` | Architecture overview |
+| `info/flow.md` | Data flow sequences |
+| `info/frontend.md` | Frontend architecture |
+| `info/build.md` | Build plan + project structure |
+| `info/T1.md` | Ollama terminal |
+| `info/T2.md` | FastAPI terminal |
+| `info/T3.md` | Express terminal |
+| `info/resources.md` | Stack references |
+| `info/learn.md` | Learning path |
+| `info/future.md` | Future roadmap |
+| `info/problem-statement.md` | Problem statement |
+| `info/frontend1.md` | Legacy (1st UI plan) |
+| `info/frontend2.md` | Legacy (2nd UI plan) |
 
 ---
 
-*Solo-developed. Air-gapped by design. No cloud dependency.*
+## Team
+
+**Cyber Assassins** — ISRO 2026
+
+| Role | Member | Contribution |
+|------|--------|-------------|
+| **Leader + Backend + Design** | Priyanka Meenkeri | Backend architecture, dashboard design, system integration |
+| **Frontend + APIs** | Doutham Tanuhya | React/Three.js frontend, REST API endpoints |
+| **AI + LLM + RAG** | Shree Raksha | ML model ensemble, Ollama LLM, ChromaDB RAG pipeline |
+| **Backend + Deploy + Polish** | Aditya Gowda | Deployment, server orchestration, UI polish, debugging |
+
+*Team-developed. Air-gapped by design. No cloud dependency.*

@@ -1,6 +1,6 @@
 # Learning Path — PS13 Stack
 
-What the solo developer learned (or needed to learn) to build the Air-Gapped Predictive Copilot for Secure MPLS Operations.
+What the team learned (or needed to learn) to build the Air-Gapped Predictive Copilot for Secure MPLS Operations.
 
 ---
 
@@ -207,7 +207,7 @@ Experienced with React 18. No anime.js or ECharts experience.
 
 ---
 
-## 9. Solo Development Practices
+## 9. Team Development Practices
 
 ### What Worked
 - 6-phase plan with clear boundaries (each phase independently verifiable)

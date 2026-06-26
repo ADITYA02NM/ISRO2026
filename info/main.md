@@ -2,159 +2,146 @@
 
 ## Air-Gapped Predictive Copilot for Secure MPLS Operations
 
-An AI-powered NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN network, streams real-time telemetry through a Prometheus/Kafka pipeline, predicts network failures using an ensemble of 7 ML models, and provides natural-language diagnostic assistance via an offline LLM with RAG over 50+ internal runbook documents — all running air-gapped on a single RTX 4060 laptop.
+An AI-powered NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN network, streams real-time telemetry, predicts network failures using an ensemble of ML models, and provides natural-language diagnostic assistance via an offline LLM with RAG over 50+ internal runbook documents — all running air-gapped on a single RTX 4060 laptop.
 
 ---
 
-## Topology (Containerlab — 4 Sites)
+## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       BGP/OSPF/MPLS Backbone                        │
-│                                                                     │
-│    ┌─────────┐         ┌─────────┐         ┌─────────┐             │
-│    │ P1 (P)  │◄───────►│ P2 (P)  │◄───────►│ P3 (P)  │             │
-│    │  Core   │  eBGP   │  Core   │  eBGP   │  Core   │             │
-│    └────┬────┘         └────┬────┘         └────┬────┘             │
-│          │                  │                  │                    │
-│    ┌─────┴─────┐    ┌──────┴──────┐    ┌──────┴──────┐             │
-│    │ PE1 (PE)  │    │ PE2 (PE)    │    │ PE3 (PE)    │             │
-│    │ Bangalore │    │ Mumbai      │    │ Chennai     │             │
-│    │ HQ        │    │ DC          │    │ DR          │             │
-│    └─────┬─────┘    └──────┬──────┘    └──────┬──────┘             │
-│          │                 │                   │                    │
-│    ┌─────┴─────┐    ┌──────┴──────┐    ┌──────┴──────┐             │
-│    │ CE1 (CE)  │    │ CE2 (CE)    │    │ CE3 (CE)    │             │
-│    │ Campus    │    │ DC Servers  │    │ DR Servers  │             │
-│    └───────────┘    └─────────────┘    └─────────────┘             │
-│                                                                     │
-│    ┌──────────────────────────────────────────────────────┐        │
-│    │           IPsec Tunnel (Bangalore ↔ Delhi)           │        │
-│    │    ┌─────────────────┐      ┌─────────────────┐      │        │
-│    │    │ IPsec GW Bengal │◄────►│ IPsec GW Delhi  │      │        │
-│    │    └─────────────────┘      └─────────────────┘      │        │
-│    └──────────────────────────────────────────────────────┘        │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Device Roles
-- **P Routers**: Core MPLS backbone, LDP + BGP-free core, high-speed label switching
-- **PE Routers**: MPLS edge, BGP/OSPF route exchange, LSP ingress/egress, VRF segmentation
-- **CE Routers**: Customer edge, single-homed or dual-homed to PE, standard IP routing
-- **IPsec Gateways**: Site-to-site encrypted overlay across untrusted transport
-
-### Fault Scenarios (7)
-1. **Link Failure**: Interface down on core link between P1-P2
-2. **BGP Flap**: PE2 BGP session to PE1 oscillates (hold timer / update delay)
-3. **Congestion**: Link utilization crosses 90% threshold (TRex burst)
-4. **Route Leak**: CE2 accidentally advertises DC prefixes to wrong VRF
-5. **Interface Errors**: CRC errors escalating on P3-PE3 link
-6. **Node Crash**: P2 container crash (simulated hard failure)
-7. **LSP Break**: MPLS label path breaks between PE1→PE3 (label withdrawal)
-
----
-
-## Data Pipeline
-
-```
-┌────────────────┐    ┌────────────┐    ┌──────────────┐    ┌────────────┐
-│ Containerlab   │    │ Telegraf   │    │  Prometheus  │    │   Kafka    │
-│ FRR Nodes      │───►│ Agents     │───►│  TSDB +      │───►│  Stream    │
-│ (metrics 5s)   │    │ (per node) │    │  Alert Rules │    │  Broker    │
-└────────────────┘    └────────────┘    └──────────────┘    └─────┬──────┘
-                                                                   │
-                    ┌──────────────────────────────────────────────┘
-                    ▼
-          ┌─────────────────────┐     ┌────────────────────────┐
-          │   ML Engine         │     │   LLM Copilot          │
-          │   ┌─────────────┐   │     │   ┌─────────────────┐  │
-          │   │ LSTM        │   │     │   │ Ollama Qwen3-8B │  │
-          │   │ (time-series)│   │     │   └────────┬────────┘  │
-          │   ├─────────────┤   │     │            │            │
-          │   │ Prophet     │   │     │   ┌────────▼────────┐  │
-          │   │ (trend/sea) │   │     │   │ ChromaDB RAG    │  │
-          │   ├─────────────┤   │     │   │ (50+ runbooks)  │  │
-          │   │ GNN (graph) │   │     │   └─────────────────┘  │
-          │   ├─────────────┤   │     └────────────────────────┘
-          │   │ XGBoost     │   │
-          │   │ (classifier)│   │     ┌────────────────────────┐
-          │   ├─────────────┤   │     │   NOC Workflow         │
-          │   │ IsoForest   │   │     │   ┌─────────────────┐  │
-          │   │ (anomaly)   │   │     │   │ NetworkX Graph  │  │
-          │   ├─────────────┤   │     │   │ Alert Correlate │  │
-          │   │ Autoencoder │   │     │   ├─────────────────┤  │
-          │   │ (recon err) │   │     │   │ Playbook Suggest│  │
-          │   ├─────────────┤   │     │   ├─────────────────┤  │
-          │   │ TTI Regr.   │   │     │   │ Incident Summ.  │  │
-          │   │ (time-to-   │   │     │   └─────────────────┘  │
-          │   │  incident)  │   │     └────────────────────────┘
-          │   └─────────────┘   │
-          └─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PS13 NOC Dashboard                              │
+│                                                                         │
+│  ┌──────────────┐  ┌────────────────────┐  ┌──────────────────────┐    │
+│  │  Left Panel   │  │   Center Panel      │  │   Right Panel        │    │
+│  │  Dashboard    │  │   IndiaMap          │  │   AI Chat            │    │
+│  │  Network Ovw  │  │   CityOrbitView     │  │   (Ollama Qwen3-8B   │    │
+│  │  ML Models    │  │   DeviceInspector   │  │    + RAG)            │    │
+│  │  Alert Feed   │  │                     │  │                      │    │
+│  └──────┬───────┘  └─────────┬───────────┘  └──────────┬───────────┘    │
+│         │                    │                          │               │
+│         └────────────┬───────┴─────────────┬────────────┘               │
+│                      ▼                     ▼                            │
+│             ┌──────────────┐     ┌──────────────────┐                   │
+│             │   Express    │     │     FastAPI      │                   │
+│             │   :3000      │     │     :8000        │                   │
+│             │  REST API    │     │  ML Inference    │                   │
+│             │  SPA Serve   │     │  ChromaDB RAG    │                   │
+│             └──────┬───────┘     └────────┬─────────┘                   │
+│                    │                      │                            │
+│                    ▼                      ▼                            │
+│             ┌──────────────┐     ┌──────────────────┐                   │
+│             │   Ollama     │     │  GPU (RTX 4060)  │                   │
+│             │   :11434     │     │  CUDA 13.3       │                   │
+│             │  qwen3:8b    │     │  8GB VRAM        │                   │
+│             └──────────────┘     └──────────────────┘                   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Terminal Breakdown
+## 3-Terminal Architecture
 
-### Terminal 1 (port 5173) — Network Topology UI
-- **Framework**: React 18 + Vite + Three.js + R3F + @react-three/drei
-- **State**: Zustand (simulation state, router selections, fault injection params)
-- **3D Scene**: 4-site MPLS network with router meshes, animated link lines, BGP peer indicators
-- **Interactions**: Click router → info panel (hostname, model, BGP peers, link states, MPLS labels)
-- **Fault Injection Panel**: Slide-toggle for each of 7 fault scenarios, reset button
-- **Animations**: Anime.js for traffic flow particles, alert flash effects, BGP session status transitions
-- **Data Flow**: REST GET /api/simulation/state for initial load, WS /ws/topology for live updates
+### Terminal 1 (port 11434) — Ollama LLM
+- **Model**: qwen3:8b (8.2B params, Q4_K_M, 5.2GB)
+- **Purpose**: Natural-language network diagnostics
+- **Acceleration**: NVIDIA CUDA 13.3, RTX 4060 8GB VRAM
+- **Integration**: FastAPI calls via Ollama Python SDK
 
-### Terminal 2 (port 8000) — Backend
-- **Simulation Orchestrator**: Containerlab lifecycle (start/stop/reset), FRR config generator per router
-- **Telemetry Pipeline Bridge**: Consumes Telegraf → Prometheus metrics, forwards to Kafka topics
-- **ML Inference Engine**: 7 models loaded on-demand; batch inference on Prometheus data, event-driven inference on Kafka stream
-- **LLM Copilot**: Ollama API calls to Qwen3-8B with RAG context from ChromaDB; Qwen3-4B-Thinking for lightweight fallback
-- **Air-Gap Scanner**: Periodic DNS, HTTP, process, and data-flow checks; reports compliance score
-- **API Endpoints**:
-  - `GET /api/simulation/state` — Current topology + fault status
-  - `POST /api/simulation/fault` — Inject fault scenario
-  - `POST /api/simulation/reset` — Reset to healthy state
-  - `GET /api/telemetry/metrics` — Prometheus metrics snapshot
-  - `GET /api/ml/predictions` — Latest model predictions
-  - `POST /api/ml/query` — Ad-hoc ML inference on custom metrics
-  - `POST /api/copilot/query` — Ask LLM with structured output
-  - `GET /api/copilot/context` — Available RAG context sources
-  - `GET /api/workflow/alerts` — Correlated alerts
-  - `POST /api/workflow/playbook` — Suggest playbook for incident
-  - `GET /api/airgap/status` — Air-gap compliance check
-  - `WS /ws/topology` — Live topology state updates
-  - `WS /ws/ml` — Live ML prediction stream
-  - `WS /ws/alerts` — Live alert stream
+### Terminal 2 (port 8000) — FastAPI + RAG + ML
+- **Server**: `uvicorn noc_copilot:app --host 0.0.0.0 --port 8000`
+- **RAG**: ChromaDB (7,920 indexed runbook docs)
+- **ML Models Loaded**:
+  - XGBoost — fault type classification
+  - Isolation Forest — anomaly detection
+  - Autoencoder — reconstruction error
+  - Prophet — trend/seasonality decomposition
+  - TTI Regressor — time-to-incident prediction
+- **ML Models Offline (expected)**:
+  - LSTM — time-series forecasting (requires TensorFlow)
+  - GNN — failure propagation (requires PyTorch Geometric)
+- **Health Check**: `GET /api/health` — returns LLM latency, RAG doc count, ML model status
 
-### Terminal 3 (port 5174) — Analytics Dashboard
-- **Framework**: React 18 + Vite + anime.js + ECharts
-- **State**: Zustand (predictions, alerts, copilot responses, airgap status)
-- **Panels**:
-  1. **ML Prediction Panel**: TTI countdown, failure probability gauges, trend charts (ECharts)
-  2. **Alert Correlation Feed**: Topology-aware grouped alerts with blast radius overlay
-  3. **LLM Copilot Panel**: Chat interface with Q1/Q2/Q3 structured answer rendering
-  4. **Playbook Suggestion Panel**: Ranked playbooks for active incidents
-  5. **Incidents Timeline**: Severity progression, resolved vs active counters
-  6. **Air-Gap Compliance**: Green/amber/red status with per-check detail
-- **Data Flow**: WS push from backend for all live data; REST for historical queries
+### Terminal 3 (port 3000) — Express + React SPA
+- **Server**: Node.js Express serving built React app + REST API
+- **React App**: Vite + TypeScript + Tailwind
+- **14 API Endpoints**: cities, devices, alerts, analytics, system status, events, chat, reset
+- **3D Visuals**: Three.js (via @react-three/fiber) — Starfield background, CityOrbitView orbital rings, device models
 
 ---
 
-## Key Design Decisions
+## Dashboard Layout
 
-| Decision | Rationale |
-|----------|-----------|
-| Containerlab for simulation | Standard for container-based NOS simulation; FRR images available; no hardware needed |
-| Ensemble ML (7 models) | Each model captures different signal; combined predictions more robust than single model |
-| ChromaDB RAG over runbooks | Lightweight, local, no cloud dependency; supports semantic search over internal docs |
-| Qwen3-8B primary LLM | Runs on RTX 4060 (8GB VRAM); strong reasoning for network diagnostics |
-| Qwen3-4B-Thinking fallback | Uses fewer resources; good for rapid/lightweight queries |
-| NetworkX for alert correlation | Lightweight graph analysis; no external graph DB needed |
-| 3-terminal architecture | Separates concerns: visualization, computation, analytics; independent scaling |
-| No cloud dependency | True air-gap; all infra via Docker + floci.io local emulation |
-| FastAPI + WebSocket | Async-first; ideal for streaming telemetry and real-time ML predictions |
-| Zustand for state | Lightweight, no boilerplate; works for both frontends |
+| Panel | Component | Content |
+|-------|-----------|---------|
+| **Left** (320px) | LeftPanel.tsx | Network Overview (4 cities, device counts), Live Alerts (pinned sticky, scrollable feed), ML Model Ensemble (5 loaded models with status) |
+| **Center** (1fr) | State-machine view | IndiaMap (SVG, clickable cities) → CityOrbitView (device nodes, orbital rings, connection paths) → DeviceInspector (health metrics, CPU/memory bars, fault triggers) |
+| **Right** (340px) | ChatTab.tsx | AI Chat with Ollama LLM (markdown formatting, timestamps, auto-focus) |
+| **Bottom** (hidden on hover) | ControlBar.tsx | Trigger fault (city/device/type selector), Random Burst, Reset Dashboard, ML Predict |
+
+---
+
+## Data Flow
+
+```
+User clicks city on IndiaMap
+  → selectCity(id) in NocContext
+  → App.tsx sets centerView = "orbit", shows CityOrbitView for that city
+  → User clicks device node (e.g., P1)
+  → selectDevice("P1") in NocContext
+  → App.tsx sets centerView = "device", shows DeviceInspector
+  → DeviceInspector fetches GET /api/devices/{cityId}_{deviceName}/health
+
+User types chat message
+  → ChatTab sends POST /api/chat { message, alerts }
+  → Express proxies to FastAPI /api/chat
+  → FastAPI queries Ollama qwen3:8b with RAG context
+  → Response streamed back → rendered in ChatTab with markdown formatting
+
+ControlBar trigger fault
+  → POST /api/events/trigger { cityId, deviceName, type }
+  → Express creates alert, broadcasts to NocContext
+  → Alert appears in LeftPanel, toast notification shown
+
+Header status dots
+  → GET /api/system/status every 30s
+  → Probes: Ollama:11434, FastAPI:8000, Network, Docker
+```
+
+---
+
+## API Endpoints (Express :3000)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/cities | List all simulated cities |
+| GET | /api/cities/:cityId/devices | Devices for a city |
+| GET | /api/alerts | All alerts (sorted: pinned + timestamp) |
+| GET | /api/alerts/summary | Alert summary stats |
+| GET | /api/devices/:deviceId | Device details |
+| GET | /api/devices/:deviceId/health | Health metrics (CPU, memory, uptime) |
+| GET | /api/system/status | Service health probe (Ollama, FastAPI, Docker) |
+| GET | /api/analytics | Aggregated dashboard analytics |
+| POST | /api/events/trigger | Inject fault (cityId, deviceName, type) |
+| POST | /api/events/random-burst | Inject 4 random faults |
+| PATCH | /api/alerts/:id/pin | Toggle alert pin |
+| DELETE | /api/alerts/:id | Delete alert |
+| POST | /api/chat | Chat with Ollama via FastAPI |
+| POST | /api/dashboard/reset | Reset to initial state |
+
+---
+
+## Fault Scenarios (7 types)
+
+| Type | Severity | Title Pattern |
+|------|----------|---------------|
+| latency | warning | Latency Spike |
+| packet_loss | warning | Packet Loss |
+| congestion | critical | Link Congestion |
+| bgp_flap | critical | BGP Session Flap |
+| ospf_issue | critical | OSPF Neighbor Down |
+| link_down | critical | Link Down |
+| route_leak | critical | Route Leak |
 
 ---
 
@@ -162,70 +149,13 @@ An AI-powered NOC copilot that simulates a multi-site enterprise MPLS/SD-WAN net
 
 | Service | Role | Technology |
 |---------|------|-----------|
-| floci.io S3 | Runbook + model storage | Local S3-compatible |
-| floci.io DynamoDB | Incident history, alert state | Local DynamoDB-compatible |
-| floci.io Lambda | Alert processor (lightweight) | Local Lambda emulation |
-| Docker | Simulation containers, pipeline services | docker-compose |
-| Ollama | LLM runtime | Local GPU-accelerated |
+| Ollama | LLM runtime | Local GPU (RTX 4060) |
 | ChromaDB | Vector store for RAG | Local persistent |
-
----
-
-## North Star — Q1 / Q2 / Q3
-
-The project is structured around three north-star questions that define success:
-
-### Q1 — Network Simulation
-> *"Does the simulated network behave like a real enterprise MPLS/SD-WAN?"*
-
-The Containerlab topology must pass BGP convergence, MPLS LSP verification, IPsec tunnel establishment, and realistic traffic generation. Without Q1, there is nothing to monitor or predict.
-
-**Evaluation weight: 35%**
-
-### Q2 — ML Prediction & LLM Copilot
-> *"Can the system predict failures before they happen and explain them in plain language?"*
-
-The ML ensemble (7 models) must detect anomalies, forecast utilization, and predict time-to-incident. The Ollama LLM with RAG must produce structured Q1/Q2/Q3 answers (What happened, Why, How to fix) that a NOC operator can act on.
-
-**Evaluation weight: 35%**
-
-### Q3 — Air-Gap & Automation
-> *"Does everything work without touching the internet, and does the NOC workflow close the loop?"*
-
-Alert correlation, playbook suggestion, incident timeline tracking, and air-gap validation must all function with zero cloud dependencies. The system is self-contained on the RTX 4060 laptop.
-
-**Evaluation weight: 20%**
-
-**Cross-cutting: Documentation, Evaluation Rubric & Reproducibility (10%)**
-
----
-
-## Evaluation Criteria
-
-| Component | Weight | Criteria |
-|-----------|--------|----------|
-| **Network Simulation** | 35% | Topology deploys, all BGP/OSPF/MPLS sessions established, IPsec tunnels up, TRex traffic > 100K pps, 7 fault scenarios inject and revert |
-| **ML Prediction** | 35% | All 7 models load and infer, batch pipeline runs every 30s, event-driven inference < 2s, WS delivery < 500ms, ONNX parity within 1e-5 |
-| **LLM Copilot** | (included in ML) | Q1/Q2/Q3 structured output, RAG precision@5 > 0.8, auto-trigger on prediction > 0.8 confidence, response < 10s on RTX 4060 |
-| **NOC Workflow** | 10% | Alert correlation groups correctly, blast radius computed, playbook suggestion ranks correct top-3, incident timeline tracks lifecycle |
-| **Air-Gap Integrity** | 10% | DNS leak check passes, HTTP proxy validated, no external IPs in data flow, compliance score ≥ 95 |
-| **Documentation & Reproducibility** | 10% | All info/ docs maintained, build phases reproducible, T1/T2/T3 prompts generate working UIs, test scenarios documented |
-
-**Pass threshold:** ≥ 80% overall with no single component below 60%.
-
----
-
-## Documentation & Maintenance Plan
-
-| Practice | Detail |
-|----------|--------|
-| **Versioning** | All docs tracked in git alongside code; PRs must update relevant info/ files |
-| **Review cadence** | Every phase milestone triggers a doc review; gaps filed as GitHub issues |
-| **Per-terminal docs** | T1.md and T2.md are stitch prompts — tested and versioned; changes to API contracts MUST update these files |
-| **T3 API contracts** | All REST + WS endpoints documented in T3.md; generated from running code (FastAPI auto-docs) |
-| **Build plan** | `build.md` is the single source of truth for scheduling; updated weekly during 14-day sprint |
-| **Resources** | `resources.md` links must be checked for 404s before each phase |
-| **Problem statement** | `problem-statement.md` is the north-star doc — updated only when project scope changes |
+| FastAPI | ML + RAG inference | Uvicorn + Python 3.11 |
+| Express | SPA server + REST API | Node.js + tsx |
+| React | Frontend SPA | Vite + TypeScript + Tailwind |
+| Three.js | 3D visualizations | @react-three/fiber + drei |
+| Docker | System status probe | docker info |
 
 ---
 
@@ -238,6 +168,25 @@ Alert correlation, playbook suggestion, incident timeline tracking, and air-gap 
 | RAM | 15 GB DDR5 |
 | Storage | Local NVMe SSD |
 | OS | Linux (Ubuntu 24.04) |
+
+---
+
+## North Star — Q1 / Q2 / Q3
+
+### Q1 — Network Simulation
+> *"Does the simulated network behave like a real enterprise MPLS/SD-WAN?"*
+
+The simulation (in-memory Express state + reactive UI) must realistically model 4-city MPLS topology with 2 P routers, 2 PE routers, and 2 E routers per city, support fault injection, and display real-time health metrics.
+
+### Q2 — ML Prediction & LLM Copilot
+> *"Can the system predict failures and explain them in plain language?"*
+
+The ML ensemble must detect anomalies, forecast utilization, and predict time-to-incident. The Ollama LLM with RAG must produce structured diagnostic responses that a NOC operator can act on immediately.
+
+### Q3 — Air-Gap & Automation
+> *"Does everything work without touching the internet?"*
+
+Ollama, ChromaDB, FastAPI, and Express all run locally. Zero cloud dependencies. The entire system is self-contained on the RTX 4060 laptop.
 
 ---
 
