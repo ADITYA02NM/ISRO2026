@@ -270,7 +270,7 @@ curl -s localhost:8000/api/health         # FastAPI health
 | Role | Member | Contribution |
 |------|--------|-------------|
 | **Leader + Backend + Design** | Priyanka Meenkeri | Backend architecture, dashboard design, system integration |
-| **Frontend + APIs** | Doutham Tanuhya | React/Three.js frontend, REST API endpoints |
+| **Frontend + APIs** | Dontamsetti Tanuhya | React/Three.js frontend, REST API endpoints |
 | **AI + LLM + RAG** | Shree Raksha | ML model ensemble, Ollama LLM, ChromaDB RAG pipeline |
 | **Backend + Deploy + Polish** | Aditya Gowda | Deployment, server orchestration, UI polish, debugging |
 
